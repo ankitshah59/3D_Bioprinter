@@ -1,0 +1,421 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="12.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{2C3B3A29-9448-4CB6-A742-34B32ED6D4CB}</ProjectGuid>
+    <OutputType>WinExe</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>CL3_IF_DllSample</RootNamespace>
+    <AssemblyName>CL3_IF_DllSample</AssemblyName>
+    <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <SccProjectName>
+    </SccProjectName>
+    <SccLocalPath>
+    </SccLocalPath>
+    <SccAuxPath>
+    </SccAuxPath>
+    <SccProvider>
+    </SccProvider>
+    <TargetFrameworkProfile />
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x86'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\Debug\x86\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x86</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x86'">
+    <OutputPath>bin\Release\x86\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>none</DebugType>
+    <PlatformTarget>x86</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\Debug\x64\</OutputPath>
+    <DefineConstants>TRACE;DEBUG;WIN64</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <OutputPath>bin\Release\x64\</OutputPath>
+    <DefineConstants>TRACE;WIN64</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>none</DebugType>
+    <PlatformTarget>x64</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>false</Prefer32Bit>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Drawing" />
+    <Reference Include="System.Windows.Forms" />
+    <Reference Include="Thorlabs.MotionControl.DeviceManagerCLI, Version=1.14.31.19156, Culture=neutral, PublicKeyToken=c7ec6d6d6e2435e7, processorArchitecture=AMD64">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\Program Files\Thorlabs\Kinesis\Thorlabs.MotionControl.DeviceManagerCLI.dll</HintPath>
+    </Reference>
+    <Reference Include="Thorlabs.MotionControl.GenericMotorCLI, Version=1.14.31.19156, Culture=neutral, PublicKeyToken=c7ec6d6d6e2435e7, processorArchitecture=AMD64">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\Program Files\Thorlabs\Kinesis\Thorlabs.MotionControl.GenericMotorCLI.dll</HintPath>
+    </Reference>
+    <Reference Include="Thorlabs.MotionControl.IntegratedStepperMotorsCLI, Version=1.14.31.19156, Culture=neutral, PublicKeyToken=c7ec6d6d6e2435e7, processorArchitecture=AMD64">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\Program Files\Thorlabs\Kinesis\Thorlabs.MotionControl.IntegratedStepperMotorsCLI.dll</HintPath>
+    </Reference>
+    <Reference Include="ThorLabs.MotionControl.KCube.DCServoCLI, Version=1.14.31.19156, Culture=neutral, PublicKeyToken=c7ec6d6d6e2435e7, processorArchitecture=AMD64">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\Program Files\Thorlabs\Kinesis\ThorLabs.MotionControl.KCube.DCServoCLI.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="LoggingProperty.cs" />
+    <Compile Include="SettingRWForms\AmbientLightFilterForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\AmbientLightFilterForm.Designer.cs">
+      <DependentUpon>AmbientLightFilterForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="DeviceData.cs" />
+    <Compile Include="SettingRWForms\EncoderForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\EncoderForm.Designer.cs">
+      <DependentUpon>EncoderForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SettingRWForms\CheckingNumberOfPeaksForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\CheckingNumberOfPeaksForm.Designer.cs">
+      <DependentUpon>CheckingNumberOfPeaksForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SettingRWForms\DisplayUnitForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\DisplayUnitForm.Designer.cs">
+      <DependentUpon>DisplayUnitForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SettingRWForms\FilterForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\FilterForm.Designer.cs">
+      <DependentUpon>FilterForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SettingRWForms\HoldForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\HoldForm.Designer.cs">
+      <DependentUpon>HoldForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SettingRWForms\InvalidDataProcessingForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\InvalidDataProcessingForm.Designer.cs">
+      <DependentUpon>InvalidDataProcessingForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SettingRWForms\JudgmentOutputForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\JudgmentOutputForm.Designer.cs">
+      <DependentUpon>JudgmentOutputForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SettingRWForms\LightIntensityControlForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\LightIntensityControlForm.Designer.cs">
+      <DependentUpon>LightIntensityControlForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="MainForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MainForm.Designer.cs">
+      <DependentUpon>MainForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SettingRWForms\LightIntensityIntegrationForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\LightIntensityIntegrationForm.Designer.cs">
+      <DependentUpon>LightIntensityIntegrationForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SettingRWForms\MaskForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\MaskForm.Designer.cs">
+      <DependentUpon>MaskForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SettingRWForms\MeasurementMethodForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\MeasurementMethodForm.Designer.cs">
+      <DependentUpon>MeasurementMethodForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SettingRWForms\MeasurementPeaksForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\MeasurementPeaksForm.Designer.cs">
+      <DependentUpon>MeasurementPeaksForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SettingRWForms\MedianFilterForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\MedianFilterForm.Designer.cs">
+      <DependentUpon>MedianFilterForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SettingRWForms\MultiLightIntensityControlForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\MultiLightIntensityControlForm.Designer.cs">
+      <DependentUpon>MultiLightIntensityControlForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SettingRWForms\MutualInterferencePreventionForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\MutualInterferencePreventionForm.Designer.cs">
+      <DependentUpon>MutualInterferencePreventionForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="NativeMethods.cs" />
+    <Compile Include="SettingRWForms\OffsetForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\OffsetForm.Designer.cs">
+      <DependentUpon>OffsetForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SettingRWForms\AnalogOutAllocationForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\AnalogOutAllocationForm.Designer.cs">
+      <DependentUpon>AnalogOutAllocationForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SettingRWForms\PeakShapeFilterForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\PeakShapeFilterForm.Designer.cs">
+      <DependentUpon>PeakShapeFilterForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="PinnedObject.cs" />
+    <Compile Include="Program.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="SettingRWForms\QuadProcessingForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\QuadProcessingForm.Designer.cs">
+      <DependentUpon>QuadProcessingForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SettingRWForms\RefractiveIndexCorrectionForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\RefractiveIndexCorrectionForm.Designer.cs">
+      <DependentUpon>RefractiveIndexCorrectionForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SettingRWForms\SamplingCycleForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\SamplingCycleForm.Designer.cs">
+      <DependentUpon>SamplingCycleForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SettingRWForms\AnalogOutputScalingForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\AnalogOutputScalingForm.Designer.cs">
+      <DependentUpon>AnalogOutputScalingForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SettingRWForms\ScalingForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\ScalingForm.Designer.cs">
+      <DependentUpon>ScalingForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SettingRWForms\StorageNumberForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\StorageNumberForm.Designer.cs">
+      <DependentUpon>StorageNumberForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SettingRWForms\StorageTargetForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\StorageTargetForm.Designer.cs">
+      <DependentUpon>StorageTargetForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SettingRWForms\StorageTimingForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\StorageTimingForm.Designer.cs">
+      <DependentUpon>StorageTimingForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SettingRWForms\TerminalAllocationForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\TerminalAllocationForm.Designer.cs">
+      <DependentUpon>TerminalAllocationForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SettingRWForms\HighSensitivityForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\HighSensitivityForm.Designer.cs">
+      <DependentUpon>HighSensitivityForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SettingRWForms\ThresholdForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\ThresholdForm.Designer.cs">
+      <DependentUpon>ThresholdForm.cs</DependentUpon>
+    </Compile>
+    <Compile Include="SettingRWForms\ToleranceForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="SettingRWForms\ToleranceForm.Designer.cs">
+      <DependentUpon>ToleranceForm.cs</DependentUpon>
+    </Compile>
+    <EmbeddedResource Include="SettingRWForms\AmbientLightFilterForm.resx">
+      <DependentUpon>AmbientLightFilterForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\EncoderForm.resx">
+      <DependentUpon>EncoderForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\CheckingNumberOfPeaksForm.resx">
+      <DependentUpon>CheckingNumberOfPeaksForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\DisplayUnitForm.resx">
+      <DependentUpon>DisplayUnitForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\FilterForm.resx">
+      <DependentUpon>FilterForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\HoldForm.resx">
+      <DependentUpon>HoldForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\InvalidDataProcessingForm.resx">
+      <DependentUpon>InvalidDataProcessingForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\JudgmentOutputForm.resx">
+      <DependentUpon>JudgmentOutputForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\LightIntensityControlForm.resx">
+      <DependentUpon>LightIntensityControlForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="MainForm.resx">
+      <DependentUpon>MainForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\LightIntensityIntegrationForm.resx">
+      <DependentUpon>LightIntensityIntegrationForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\MaskForm.resx">
+      <DependentUpon>MaskForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\MeasurementMethodForm.resx">
+      <DependentUpon>MeasurementMethodForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\MeasurementPeaksForm.resx">
+      <DependentUpon>MeasurementPeaksForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\MedianFilterForm.resx">
+      <DependentUpon>MedianFilterForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\MultiLightIntensityControlForm.resx">
+      <DependentUpon>MultiLightIntensityControlForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\MutualInterferencePreventionForm.resx">
+      <DependentUpon>MutualInterferencePreventionForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\OffsetForm.resx">
+      <DependentUpon>OffsetForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\AnalogOutAllocationForm.resx">
+      <DependentUpon>AnalogOutAllocationForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\PeakShapeFilterForm.resx">
+      <DependentUpon>PeakShapeFilterForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
+    <Compile Include="Properties\Resources.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+      <DesignTime>True</DesignTime>
+    </Compile>
+    <EmbeddedResource Include="SettingRWForms\QuadProcessingForm.resx">
+      <DependentUpon>QuadProcessingForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\RefractiveIndexCorrectionForm.resx">
+      <DependentUpon>RefractiveIndexCorrectionForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\SamplingCycleForm.resx">
+      <DependentUpon>SamplingCycleForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\AnalogOutputScalingForm.resx">
+      <DependentUpon>AnalogOutputScalingForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\ScalingForm.resx">
+      <DependentUpon>ScalingForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\StorageNumberForm.resx">
+      <DependentUpon>StorageNumberForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\StorageTargetForm.resx">
+      <DependentUpon>StorageTargetForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\StorageTimingForm.resx">
+      <DependentUpon>StorageTimingForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\TerminalAllocationForm.resx">
+      <DependentUpon>TerminalAllocationForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\HighSensitivityForm.resx">
+      <DependentUpon>HighSensitivityForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\ThresholdForm.resx">
+      <DependentUpon>ThresholdForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="SettingRWForms\ToleranceForm.resx">
+      <DependentUpon>ToleranceForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <None Include="app.config" />
+    <None Include="Properties\Settings.settings">
+      <Generator>SettingsSingleFileGenerator</Generator>
+      <LastGenOutput>Settings.Designer.cs</LastGenOutput>
+    </None>
+    <Compile Include="Properties\Settings.Designer.cs">
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Settings.settings</DependentUpon>
+      <DesignTimeSharedInput>True</DesignTimeSharedInput>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup />
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PreBuildEvent>set CONFIGURATION_DIR=$(Configuration)
+set CONFIGURATION_DIR=%25CONFIGURATION_DIR:Debug=Release%25
+set PLATFORM_DIR=$(Platform)
+
+set DLL_DIR=$(SolutionDir)..\..\lib\%25PLATFORM_DIR%25
+if exist "%25DLL_DIR%25" copy /B /Y "%25DLL_DIR%25\*.dll" .\
+
+set DLL_DIR=$(SolutionDir)..\lib\%25PLATFORM_DIR%25
+if exist "%25DLL_DIR%25" copy /B /Y "%25DLL_DIR%25\*.dll" .\</PreBuildEvent>
+  </PropertyGroup>
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>
