@@ -66,6 +66,7 @@ namespace CL3_IF_DllSample
         private Thorlabs.MotionControl.IntegratedStepperMotorsCLI.LongTravelStage controller;
         private Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo controllerY;
         private Thorlabs.MotionControl.IntegratedStepperMotorsCLI.LongTravelStage controllerZ;
+        private decimal heightData;
 
 
         /*        private LongTravelStage controller = LongTravelStage.CreateLongTravelStage("45252174");
@@ -111,6 +112,7 @@ namespace CL3_IF_DllSample
 
         public MainForm()
         {
+            
             InitializeComponent();
 
             _deviceData = new DeviceData[NativeMethods.CL3IF_MAX_DEVICE_COUNT];
@@ -4239,12 +4241,13 @@ namespace CL3_IF_DllSample
 
         public void Keyence_thread()
         {
-            Thread thread5 = new Thread(() => Counter());
+            Thread thread5 = new Thread(() => KeyenceData());
             thread5.Start();
         }
 
-        public void Counter()
+        public void KeyenceData()
         {
+           
             //Console.WriteLine("hereeeeba");
             byte[] buffer = new byte[MaxRequestDataLength];
             using (PinnedObject pin = new PinnedObject(buffer))
@@ -4288,10 +4291,110 @@ namespace CL3_IF_DllSample
                     this.Invoke((MethodInvoker)(() => OutputLogMessage(measurementData.outMeasurementData[0].measurementValue.ToString())));
 
                     // OutputLogMessage("GetMeasurementData", returnCode, loggingProperties);
-                    Console.WriteLine(measurementData.outMeasurementData[0].measurementValue.ToString());
+                    //Console.WriteLine(measurementData.outMeasurementData[0].measurementValue.ToString());
+                    heightData = Convert.ToDecimal( measurementData.outMeasurementData[0].measurementValue.ToString())/10000;
+                    Console.WriteLine(heightData);
+                    this.Invoke((MethodInvoker)(() => OutputLogMessage(heightData.ToString())));
+
+
+                    this.Invoke((MethodInvoker)(() => textBox6.Text = controller.Position.ToString()));
+                    this.Invoke((MethodInvoker)(() => textBox7.Text = controllerY.Position.ToString()));
+                    this.Invoke((MethodInvoker)(() => textBox8.Text = controllerZ.Position.ToString()));
+
+                    if (!controllerZ.IsDeviceBusy)
+                    {
+                        Thread threadZ = new Thread(() => MoveZ(controllerZ, heightData));
+                        threadZ.Start();
+                    }
+
+                   /* if(!(heightData >= -0.09m) && (heightData <= 0.09m))
+                    {
+                        try
+                        {
+                           // Console.WriteLine("Moving controllerX to {0}", position);
+                            controllerZ.MoveTo(6.4m, 0);
+
+                        }
+                        catch (Exception)
+                        {
+                            Console.WriteLine("Failed to move to position");
+                            // Console.ReadKey();
+                            return;
+                        }
+                    }*/
 
                 }
             }
+        }
+
+        private void MoveZ(Thorlabs.MotionControl.IntegratedStepperMotorsCLI.LongTravelStage controllerZ, decimal heightData)
+        {
+            VelocityParameters velParsZ = controllerZ.GetVelocityParams();
+            velParsZ.MaxVelocity = 60m;
+            velParsZ.Acceleration = 120m;
+            controllerZ.SetVelocityParams(velParsZ);
+
+            if ((heightData <= -1m) && (heightData != -99.9999m))
+            {
+                try
+                {
+                    controllerZ.MoveTo(11m + heightData,0);
+                }
+                catch (Exception)
+                {
+                    Console.WriteLine("Failed to move to position");
+                    // Console.ReadKey();
+                    return;
+                }
+            }
+
+            else if((heightData >= 1m) && (heightData != -99.9999m))
+                {
+                    try
+                    {
+                        controllerZ.MoveTo(11 - heightData, 0);
+                    }
+                catch (Exception)
+                {
+                    Console.WriteLine("Failed to move to position");
+                    // Console.ReadKey();
+                    return;
+                }
+            }
+
+/*            else if ((heightData == -99.9999m))
+            {
+                try
+                {
+                    controllerZ.MoveTo(10, 0);
+                }
+                catch (Exception)
+                {
+                    Console.WriteLine("Failed to move to position");
+                    // Console.ReadKey();
+                    return;
+                }
+            }*/
+
+            /* if (!(heightData >= -0.09m) && (heightData <= 0.09m) && (heightData != -99.9999m))
+             {
+                 try
+                 {
+                     // Console.WriteLine("Moving controllerX to {0}", position);
+                    *//* VelocityParameters velParsZ = controllerZ.GetVelocityParams();
+                     velParsZ.MaxVelocity = 60m;
+                     velParsZ.Acceleration = 120m;
+                     controllerZ.SetVelocityParams(velParsZ);*//*
+                     controllerZ.MoveTo(5.4m-heightData, 0);
+
+                 }
+                 catch (Exception)
+                 {
+                     Console.WriteLine("Failed to move to position");
+                     // Console.ReadKey();
+                     return;
+                 }
+             }*/
         }
 
 
@@ -4304,6 +4407,7 @@ namespace CL3_IF_DllSample
         private void button4_Click(object sender, EventArgs e)
         {
             Move_AntiClockthread();
+           // Console.WriteLine("yhehehehehehehehehe"+heightData);
         }
 
         private void button8_Click(object sender, EventArgs e)
@@ -4438,6 +4542,21 @@ namespace CL3_IF_DllSample
         }
 
         private void button11_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void label9_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void textBox6_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void textBox7_TextChanged(object sender, EventArgs e)
         {
 
         }
