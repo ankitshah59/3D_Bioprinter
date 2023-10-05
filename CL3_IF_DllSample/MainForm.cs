@@ -14,12 +14,19 @@ using Thorlabs.MotionControl.GenericMotorCLI.Settings;
 using Thorlabs.MotionControl.GenericMotorCLI.ControlParameters;
 using Thorlabs.MotionControl.IntegratedStepperMotorsCLI;
 using Thorlabs.MotionControl.KCube.DCServoCLI;
+
 using System.Text.RegularExpressions;
+using Sharer;
+using System.IO.Ports;
+using SERIAL_RX_TX;
+using System.Reflection;
+using System.Collections;
 
 namespace CL3_IF_DllSample
 {
     public partial class MainForm : Form
     {
+
         private readonly DeviceData[] _deviceData;
         private readonly Label[] _deviceStatusLabels;
 
@@ -68,6 +75,37 @@ namespace CL3_IF_DllSample
         private Thorlabs.MotionControl.IntegratedStepperMotorsCLI.LongTravelStage controllerZ;
         private decimal heightData;
 
+        private SerialPort port = new SerialPort("COM12", 9600, Parity.None, 8, StopBits.One);
+        private SerialComPort serialPort;
+        private string receivedData;
+        private bool dataReady = false;
+        private System.Windows.Forms.Timer receivedDataTimer;
+
+        private double incrementX = 0;
+        private decimal previousValue = 0m;
+
+
+        private decimal kp = 1m;
+        private decimal ki = 0.00001m;
+        private decimal kd = 0.00001m;
+        private decimal setpoint = 0.0m;
+        private decimal integralTerm = 0.0m;
+        private decimal prevError = 0.0m;
+        private decimal error = 0.0m;
+        private decimal proportionalTerm = 0.0m;
+        private decimal derivativeTerm = 0.0m;
+        private decimal controlSignal = 0.0m;
+
+
+        public static ArrayList myListArcs = new ArrayList();
+        public static ArrayList coordinateList = new ArrayList();
+        private ArrayList arrayListVelocity = new ArrayList();
+
+        private double distancePerDegree = 0;
+        private string VelXY = "";
+        private decimal posnX = 0m;
+        private decimal posnY = 0m;
+
 
         /*        private LongTravelStage controller = LongTravelStage.CreateLongTravelStage("45252174");
                 private KCubeDCServo controllerY;
@@ -100,20 +138,18 @@ namespace CL3_IF_DllSample
         //=======================================================
 
 
-
-
-
-
-
-
-
-
         #region Initialize
 
         public MainForm()
         {
-            
+
             InitializeComponent();
+            serialPort = new SerialComPort();
+            serialPort.RegisterReceiveCallback(ReceiveDataHandler);
+            receivedDataTimer = new System.Windows.Forms.Timer();
+            receivedDataTimer.Interval = 25;   // 25 ms
+            receivedDataTimer.Tick += new EventHandler(ReceivedDataTimerTick);
+            receivedDataTimer.Start();
 
             _deviceData = new DeviceData[NativeMethods.CL3IF_MAX_DEVICE_COUNT];
             _deviceStatusLabels = new Label[] { _labelDeviceStatus0, _labelDeviceStatus1, _labelDeviceStatus2 };
@@ -127,7 +163,7 @@ namespace CL3_IF_DllSample
             mainThread.Name = "Main Thread";
             Console.WriteLine(mainThread.Name);
 
-            // testt();
+            //test();
 
             // Thread thread1 = new Thread(() => CountDown("Timer #1"));
             // Thread thread2 = new Thread(() => CountUp("Timer #2",controller));
@@ -141,12 +177,13 @@ namespace CL3_IF_DllSample
             //thread2.Start();
 
             // Console.WriteLine(mainThread.Name + " is complete!");
-
+            //SerialPort port = new SerialPort(textBox13.Text, 9600, Parity.None, 8, StopBits.One);  
+            port.Open();
 
             (controller, controllerY, controllerZ) = initializeXYZ();
 
-            // decimal  x = controller.Position;
 
+            // decimal  x =
             /*      Console.WriteLine(controller.Position);
                   Console.WriteLine(controllerY.Position);
                   Console.WriteLine(controllerZ.Position);*/
@@ -157,63 +194,250 @@ namespace CL3_IF_DllSample
             InitializeComboBox();
         }
 
-
-        public void Move_Down(String name, IGenericAdvancedMotor controller)
+        private void ReceiveDataHandler(string data)
         {
+            if (dataReady)
+            {
+                Console.WriteLine("Received data was thrown away because line buffer not emptied");
+            }
+            else
+            {
+                dataReady = true;
+                receivedData = data;
+            }
+        }
 
+        private void ReceivedDataTimerTick(object sender, EventArgs e)
+        {
+            if (dataReady)
+            {
+                dataReady = false;
+                Console.WriteLine(receivedData);
+            }
+        }
+
+        public void Move_Down(String name, Thorlabs.MotionControl.IntegratedStepperMotorsCLI.LongTravelStage controller)
+        {
+            // VelocityParameters() sd = controller.mov
             VelocityParameters velPars = controller.GetVelocityParams();
 
             velPars.MaxVelocity = Convert.ToDecimal(textBox4.Text);
 
-            velPars.Acceleration = 120m;
+            velPars.Acceleration = Convert.ToDecimal(textBox14.Text);
             // controllerY.
 
             controller.SetVelocityParams(velPars);
+            decimal positionInitial = controller.Position;
+            port.Write("A");
 
-            controller.MoveRelative(0, Convert.ToDecimal(textBox3.Text), 0);
+
+            if (!controller.IsDeviceBusy)
+            {
+                controller.MoveRelative(0, Convert.ToDecimal(textBox16.Text), 0);
+            }
+            //sing Stopwatch;
+            //  Stopwatch stopwatch = new Stopwatch();
+            var watch = new System.Diagnostics.Stopwatch();
+
+            watch.Start();
+            
+            while (true)
+            {
+                //Keyence_thread();
+                decimal newPosX = controller.Position;
+
+                //System.Console.WriteLine("Moving...");
+                // System.Console.WriteLine(newPosX);
+                //System.Console.WriteLine(controller.Status.IsMoving);
+                //System.Console.WriteLine("posn X: {0}", position);
+
+                if (controller.Status.IsMoving == false)
+                {
+
+                    //System.Console.WriteLine("Moved SuccessfullyX!! {0}", (newPosX == Convert.ToDecimal(textBox3.Text)));
+
+                }
+
+                if ((newPosX == Convert.ToDecimal(textBox16.Text) + positionInitial))
+                {
+                    //System.Console.WriteLine("doneeeeeeeeeeeeeeeeeeeeeee");
+                    port.Write("B");
+                    break;
+                }
+
+            }
+            watch.Stop();
+
+            Console.WriteLine($"Execution Time: {watch.ElapsedMilliseconds} ms");
+
             Console.WriteLine("Timer #1 is complete!");
         }
-        public void Move_Up(String name, IGenericAdvancedMotor controller)
+        public void Move_Up(String name, Thorlabs.MotionControl.IntegratedStepperMotorsCLI.LongTravelStage controller)
         {
             VelocityParameters velPars = controller.GetVelocityParams();
 
             velPars.MaxVelocity = Convert.ToDecimal(textBox4.Text);
 
-            velPars.Acceleration = 120m;
+            velPars.Acceleration = Convert.ToDecimal(textBox14.Text);
             // controllerY.
 
             controller.SetVelocityParams(velPars);
+            decimal positionInitial = controller.Position;
 
-            controller.MoveRelative(0, -1 * Convert.ToDecimal(textBox3.Text), 0);
+
+            //decimal x = System.DateTime.Now.Millisecond;
+        
+            port.Write("A");
+            if (!controller.IsDeviceBusy)
+            {
+                controller.MoveRelative(0, -1 * Convert.ToDecimal(textBox16.Text), 0);
+            }
+
+            var watch = new System.Diagnostics.Stopwatch();
+
+            watch.Start();
+
+            while (true)
+            {
+                //Keyence_thread();
+                decimal newPosX = controller.Position;
+
+                //System.Console.WriteLine("Moving...");
+                //System.Console.WriteLine(newPosX);
+                //System.Console.WriteLine(controller.Status.IsMoving);
+                //System.Console.WriteLine("posn X: {0}", position);
+
+                if (controller.Status.IsMoving == false)
+                {
+
+                    //System.Console.WriteLine("Moved SuccessfullyX!! {0}", (newPosX == Convert.ToDecimal(textBox3.Text)));
+
+                }
+
+                if ((newPosX == -1 * Convert.ToDecimal(textBox16.Text) + positionInitial))
+                {
+                    //System.Console.WriteLine("doneeeeeeeeeeeeeeeeeeeeeee");
+                    port.Write("B");
+                    break;
+                }
+
+            }
+            watch.Stop();
+
+            Console.WriteLine($"Execution Time: {watch.ElapsedMilliseconds} ms");
+
             Console.WriteLine("Timer #2 is complete!");
         }
 
-        public void Move_Clock(String name, IGenericAdvancedMotor controllerY)
+        public void Move_Clock(String name, Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo controllerY)
         {
             VelocityParameters velParsY = controllerY.GetVelocityParams();
 
             velParsY.MaxVelocity = Convert.ToDecimal(textBox4.Text);
 
-            velParsY.Acceleration = 120m;
+            velParsY.Acceleration = Convert.ToDecimal(textBox14.Text);
 
             controllerY.SetVelocityParams(velParsY);
-            controllerY.MoveRelative(0, Convert.ToDecimal(textBox3.Text), 0);
+            decimal positionInitial = controllerY.DevicePosition;
+            //port.Write("A");
+            if (!controllerY.IsDeviceBusy)
+            {
+                port.Write("A");
+                controllerY.MoveRelative(0, Convert.ToDecimal(textBox3.Text), 0);
+            }
+            var watch = new System.Diagnostics.Stopwatch();
+
+            watch.Start();
+
+
+            while (true)
+            {
+                //Keyence_thread();
+                decimal newPosY = controllerY.DevicePosition;
+
+                System.Console.WriteLine("Moving...");
+                System.Console.WriteLine(newPosY);
+                System.Console.WriteLine(controllerY.Status.IsMoving);
+                //System.Console.WriteLine("posn X: {0}", position);
+
+                if (controllerY.Status.IsMoving == false)
+                {
+
+                    System.Console.WriteLine("Moved SuccessfullyY!! {0}", (Decimal.ToInt32(newPosY) == Decimal.ToInt32(Convert.ToDecimal(textBox3.Text))));
+
+                }
+
+                if ((Decimal.ToInt32(newPosY) == Decimal.ToInt32(Convert.ToDecimal(textBox3.Text) + positionInitial)))
+                {
+                    System.Console.WriteLine("doneeeeeeeeeeeeeeeeeeeeeee");
+                    port.Write("B");
+                    break;
+                }
+
+            }
+
+
+            watch.Stop();
+
+            Console.WriteLine($"Execution Time: {watch.ElapsedMilliseconds} ms");
 
             Console.WriteLine(controllerY.DevicePosition);
         }
 
-        public void Move_AntiClock(String name, IGenericAdvancedMotor controllerY)
+        public void Move_AntiClock(String name, Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo controllerY)
         {
             // controllerY.MoveTo(-5m, 0);
             VelocityParameters velParsY = controllerY.GetVelocityParams();
 
             velParsY.MaxVelocity = Convert.ToDecimal(textBox4.Text);
 
-            velParsY.Acceleration = 120m;
+            velParsY.Acceleration = Convert.ToDecimal(textBox14.Text);
             // controllerY.
 
             controllerY.SetVelocityParams(velParsY);
-            controllerY.MoveRelative(0, -1 * Convert.ToDecimal(textBox3.Text), 0);
+            decimal positionInitial = controllerY.DevicePosition;
+            //port.Write("A");
+            if (!controllerY.IsDeviceBusy)
+            {
+                port.Write("A");
+                controllerY.MoveRelative(0, -1 * Convert.ToDecimal(textBox3.Text), 0);
+            }
+            //controllerY.MoveRelative(0, 5m, 0);
+
+            var watch = new System.Diagnostics.Stopwatch();
+
+            watch.Start();
+
+            while (true)
+            {
+                //Keyence_thread();
+                decimal newPosY = controllerY.DevicePosition;
+
+                System.Console.WriteLine("Moving...");
+                System.Console.WriteLine(newPosY);
+                System.Console.WriteLine(controllerY.Status.IsMoving);
+                //System.Console.WriteLine("posn X: {0}", position);
+
+                if (controllerY.Status.IsMoving == false)
+                {
+
+                    System.Console.WriteLine("Moved SuccessfullyY!! {0}", (Decimal.ToInt32(newPosY) == Decimal.ToInt32(Convert.ToDecimal(textBox3.Text))));
+
+                }
+
+                if ((Decimal.ToInt32(newPosY) == Decimal.ToInt32(-1 * Convert.ToDecimal(textBox3.Text) + positionInitial)))
+                {
+                    System.Console.WriteLine("doneeeeeeeeeeeeeeeeeeeeeee");
+                    port.Write("B");
+                    break;
+                }
+
+            }
+
+            watch.Stop();
+
+            Console.WriteLine($"Execution Time: {watch.ElapsedMilliseconds} ms");
+
             Console.WriteLine("Timer #4 is complete!");
         }
         private void InitializeComboBox()
@@ -266,6 +490,7 @@ namespace CL3_IF_DllSample
         }
 
         #endregion
+
 
         #region initiaizeXYZ controllers
         public (Thorlabs.MotionControl.IntegratedStepperMotorsCLI.LongTravelStage, Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo, Thorlabs.MotionControl.IntegratedStepperMotorsCLI.LongTravelStage) initializeXYZ()
@@ -651,7 +876,7 @@ namespace CL3_IF_DllSample
                 Console.WriteLine(homed);
 
                 decimal position = 0.00m;
-                double diameter = 28.64; // input value mm
+                double diameter = 29.00; // input value mm
                 double circumference = 2 * Math.PI * (diameter / 2);
                 double distancePerDegree = ((circumference) / 360); //mm per degree
                 decimal distanceToMove = 80m; // input value is always less than circumfernce
@@ -669,9 +894,18 @@ namespace CL3_IF_DllSample
                 int counter = 0;
                 Console.WriteLine(newPosY);
 
+                VelocityParameters velParsZ = controllerZ.GetVelocityParams();
+                velParsZ.MinVelocity = 60m;
+                velParsZ.MaxVelocity = 60m;
+                velParsZ.Acceleration = 120m; //0
+                controllerZ.SetVelocityParams(velParsZ);
+                controllerZ.SetBacklash(0);
+
                 return (controller, controllerY, controllerZ);
             }
 
+
+            // timer3.Start();
         }
 
         #endregion
@@ -680,6 +914,8 @@ namespace CL3_IF_DllSample
 
         private void _buttonOpenUsbCommunication_Click(object sender, EventArgs e)
         {
+            timer3.Start();
+            timer4.Start();
             int returnCode = NativeMethods.CL3IF_OpenUsbCommunication(CurrentDeviceId, 5000);
 
             OutputLogMessage("OpenUsbCommunication", returnCode);
@@ -3580,6 +3816,7 @@ namespace CL3_IF_DllSample
 
         }
 
+
         private void button1_Click(object sender, EventArgs e)
         {
             Keyence_thread();
@@ -3607,7 +3844,7 @@ namespace CL3_IF_DllSample
 
                              if (returnCode != NativeMethods.CL3IF_RC_OK)
                              {
-                                // OutputLogMessage("GetMeasurementData", returnCode);
+                                 // OutputLogMessage("GetMeasurementData", returnCode);
                                  return;
                              }
 
@@ -3618,19 +3855,19 @@ namespace CL3_IF_DllSample
                                  measurementData.outMeasurementData[0] = (CL3IF_OUTMEASUREMENT_DATA)Marshal.PtrToStructure(pin.Pointer + readPosition, typeof(CL3IF_OUTMEASUREMENT_DATA));
                                  // readPosition += Marshal.SizeOf(typeof(CL3IF_OUTMEASUREMENT_DATA));
                              }
-                             *//*
-                                             List<LoggingProperty> loggingProperties = new List<LoggingProperty>() { };
-                                             loggingProperties.Add(new LoggingProperty("triggerCount", measurementData.addInfo.triggerCount.ToString()));
-                                             loggingProperties.Add(new LoggingProperty("pulseCount", measurementData.addInfo.pulseCount.ToString()));
-                                             for (int i = 0; i < NativeMethods.CL3IF_MAX_OUT_COUNT; i++)
-                                             {
-                                                 string outNumber = "[OUT" + (i + 1) + "]";
-                                                 loggingProperties.Add(new LoggingProperty(outNumber + "measurementValue", measurementData.outMeasurementData[i].measurementValue.ToString()));
-                                                 loggingProperties.Add(new LoggingProperty(outNumber + "valueInfo", ((CL3IF_VALUE_INFO)measurementData.outMeasurementData[i].valueInfo).ToString()));
-                                                 loggingProperties.Add(new LoggingProperty(outNumber + "judgeResult", measurementData.outMeasurementData[i].judgeResult.ToString()));
-                                             }
-                             *//*
-                             this.Invoke((MethodInvoker)(() => OutputLogMessage(measurementData.outMeasurementData[0].measurementValue.ToString()))); 
+
+                             List<LoggingProperty> loggingProperties = new List<LoggingProperty>() { };
+                             loggingProperties.Add(new LoggingProperty("triggerCount", measurementData.addInfo.triggerCount.ToString()));
+                             loggingProperties.Add(new LoggingProperty("pulseCount", measurementData.addInfo.pulseCount.ToString()));
+                             for (int i = 0; i < NativeMethods.CL3IF_MAX_OUT_COUNT; i++)
+                             {
+                                 string outNumber = "[OUT" + (i + 1) + "]";
+                                 loggingProperties.Add(new LoggingProperty(outNumber + "measurementValue", measurementData.outMeasurementData[i].measurementValue.ToString()));
+                                 loggingProperties.Add(new LoggingProperty(outNumber + "valueInfo", ((CL3IF_VALUE_INFO)measurementData.outMeasurementData[i].valueInfo).ToString()));
+                                 loggingProperties.Add(new LoggingProperty(outNumber + "judgeResult", measurementData.outMeasurementData[i].judgeResult.ToString()));
+                             }
+
+                             this.Invoke((MethodInvoker)(() => OutputLogMessage(measurementData.outMeasurementData[0].measurementValue.ToString())));
 
                              // OutputLogMessage("GetMeasurementData", returnCode, loggingProperties);
                              //Console.WriteLine(measurementData.outMeasurementData[0].measurementValue.ToString());
@@ -3761,7 +3998,8 @@ namespace CL3_IF_DllSample
 
         private void button10_Click(object sender, EventArgs e)
         {
-            openFileDialog1.ShowDialog();
+            //   openFileDialog1.ShowDialog();
+            System.Diagnostics.Process.Start(@"C:\Users\Ankit Shah\Desktop\LIMRDesigner\LIMR_Bioprinter.application");
         }
 
         private void button3_Click(object sender, EventArgs e)
@@ -3775,150 +4013,66 @@ namespace CL3_IF_DllSample
             //thread1.Start();
         }
 
-        public static void testt(Thorlabs.MotionControl.IntegratedStepperMotorsCLI.LongTravelStage controller, Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo controllerY, Thorlabs.MotionControl.IntegratedStepperMotorsCLI.LongTravelStage controllerZ)
+        private void testt(Thorlabs.MotionControl.IntegratedStepperMotorsCLI.LongTravelStage controller, Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo controllerY, Thorlabs.MotionControl.IntegratedStepperMotorsCLI.LongTravelStage controllerZ, SerialPort port)
         {
-            /* try
-             {
-                 DeviceManagerCLI.BuildDeviceList();
-             }
+            {
+                /* 
+                 String serialNoX = "45252174";
+                 String serialNoY = "27260648";
+                 String serialNoZ = "45252164";
 
-             catch (Exception)
-             {
-                 Console.WriteLine("Faillll");
-                 return;
+                 // Start the controller polling
+                 // The polling loop requests regular status requests to the motor to ensure the program keeps track of the controller. 
+                 controller.StartPolling(250);
+                 // Needs a delay so that the current enabled state can be obtained
+                 Thread.Sleep(500);
+                 // Enable the channel otherwise any move is ignored 
+                 controller.EnableDevice();
+                 Thread.Sleep(500);
+                 controllerY.StartPolling(250);
+                 Thread.Sleep(500);
+                 controllerY.EnableDevice();
+                 // Needs a delay to give time for the controller to be enabled
+                 Thread.Sleep(500);
 
-             }
+                 // Call LoadMotorConfiguration on the controller to initialize the DeviceUnitConverter object required for real world unit parameters
+                 //  - loads configuration information into channel
+                 MotorConfiguration motorConfiguration = controller.LoadMotorConfiguration(serialNoX);
+                 MotorConfiguration motorConfigurationY = controllerY.LoadMotorConfiguration(serialNoY);
 
-             List<string> serialNumbers = DeviceManagerCLI.GetDeviceList();
-             List<string> serialNumbersPrefix = DeviceManagerCLI.GetDeviceList(LongTravelStage.DevicePrefix);
+                 // Not used directly in example but illustrates how to obtain controller settings
+                 ThorlabsIntegratedStepperMotorSettings currentDeviceSettings = controller.MotorDeviceSettings as ThorlabsIntegratedStepperMotorSettings;
 
+                 // Display info about controller
+                 DeviceInfo deviceInfo = controller.GetDeviceInfo();
+                 Console.WriteLine("controller {0} = {1}", deviceInfo.SerialNumber, deviceInfo.Name);
 
-             if (serialNumbers.Count > 0)
-             {
-                 Console.WriteLine(serialNumbers[0]);
-                 Console.WriteLine(serialNumbers[1]);
+                 //--------------------------------------------------
+                 // The API requires stage type to be specified
+                 motorConfigurationY.DeviceSettingsName = "PRM1Z8";
 
-             }
-             else
-             {
-                 Console.WriteLine("No connected Devices");
-                 return;
+                 // Get the device unit converter
+                 motorConfigurationY.UpdateCurrentConfiguration();
 
-             }
-             String serialNoX = "45252174";
-             String serialNoY = "27260648";
-             String serialNoZ = "45252164";
+                 // Not used directly in example but illustrates how to obtain device settings
+                 KCubeDCMotorSettings currentDeviceSettingsY = controllerY.MotorDeviceSettings as KCubeDCMotorSettings;
 
-             LongTravelStage controller = LongTravelStage.CreateLongTravelStage(serialNoX);
-             //LongTravelStage controllerZ = LongTravelStage.CreateLongTravelStage(serialNoZ);
-             KCubeDCServo controllerY = KCubeDCServo.CreateKCubeDCServo(serialNoY);
+                 // Updates the motor controller with the selected settings
+                 controllerY.SetSettings(currentDeviceSettingsY, true, false);
 
-             if (controller != null)
-             {
-                 controller.Connect(serialNoX);
-                 controller.GetMotorConfiguration(serialNoX, DeviceConfiguration.DeviceSettingsUseOptionType.UseDeviceSettings);
-
-             }
-
-             if (controllerY != null)
-             {
-                 controllerY.Connect(serialNoY);
-                 //controllerY.GetMotorConfiguration(serialNoY, DeviceConfiguration.DeviceSettingsUseOptionType.UseDeviceSettings);
-
-             }
-
-             // Wait for the controller settings to initialize - timeout 5000ms
-             if (!controller.IsSettingsInitialized())
-             {
-                 try
-                 {
-                     Console.WriteLine("Settings init start");
-
-                     controller.WaitForSettingsInitialized(5000);
-
-                     Console.WriteLine("Settings init finish");
-
-                 }
-                 catch (Exception)
-                 {
-                     Console.WriteLine("Settings failed to initialize");
-                 }
-             }
-
-             if (!controllerY.IsSettingsInitialized())
-             {
-                 try
-                 {
-                     Console.WriteLine("Settings init start");
-
-                     controllerY.WaitForSettingsInitialized(5000);
-
-                     Console.WriteLine("Settings init finish");
-
-                 }
-                 catch (Exception)
-                 {
-                     Console.WriteLine("Settings failed to initialize");
-                 }
-             }
-
- */
-            String serialNoX = "45252174";
-            String serialNoY = "27260648";
-            String serialNoZ = "45252164";
-
-            // Start the controller polling
-            // The polling loop requests regular status requests to the motor to ensure the program keeps track of the controller. 
-            controller.StartPolling(250);
-            // Needs a delay so that the current enabled state can be obtained
-            Thread.Sleep(500);
-            // Enable the channel otherwise any move is ignored 
-            controller.EnableDevice();
-            Thread.Sleep(500);
-            controllerY.StartPolling(250);
-            Thread.Sleep(500);
-            controllerY.EnableDevice();
-            // Needs a delay to give time for the controller to be enabled
-            Thread.Sleep(500);
-
-            // Call LoadMotorConfiguration on the controller to initialize the DeviceUnitConverter object required for real world unit parameters
-            //  - loads configuration information into channel
-            MotorConfiguration motorConfiguration = controller.LoadMotorConfiguration(serialNoX);
-            MotorConfiguration motorConfigurationY = controllerY.LoadMotorConfiguration(serialNoY);
-
-            // Not used directly in example but illustrates how to obtain controller settings
-            ThorlabsIntegratedStepperMotorSettings currentDeviceSettings = controller.MotorDeviceSettings as ThorlabsIntegratedStepperMotorSettings;
-
-            // Display info about controller
-            DeviceInfo deviceInfo = controller.GetDeviceInfo();
-            Console.WriteLine("controller {0} = {1}", deviceInfo.SerialNumber, deviceInfo.Name);
-
-            //--------------------------------------------------
-            // The API requires stage type to be specified
-            motorConfigurationY.DeviceSettingsName = "PRM1Z8";
-
-            // Get the device unit converter
-            motorConfigurationY.UpdateCurrentConfiguration();
-
-            // Not used directly in example but illustrates how to obtain device settings
-            KCubeDCMotorSettings currentDeviceSettingsY = controllerY.MotorDeviceSettings as KCubeDCMotorSettings;
-
-            // Updates the motor controller with the selected settings
-            controllerY.SetSettings(currentDeviceSettingsY, true, false);
-
-            // Display info about device
-            DeviceInfo deviceInfoY = controllerY.GetDeviceInfo();
-            Console.WriteLine("Device {0} = {1}", deviceInfoY.SerialNumber, deviceInfoY.Name);
+                 // Display info about device
+                 DeviceInfo deviceInfoY = controllerY.GetDeviceInfo();
+                 Console.WriteLine("Device {0} = {1}", deviceInfoY.SerialNumber, deviceInfoY.Name);*/
 
 
-            //--------------------------------------------------
-
+                //--------------------------------------------------
+            }
 
             bool homed = controller.Status.IsHomed;
             Console.WriteLine(homed);
 
             decimal position = 0.00m;
-            double diameter = 28.64; // input value mm
+            double diameter = 29.00; // input value mm
             double circumference = 2 * Math.PI * (diameter / 2);
             double distancePerDegree = ((circumference) / 360); //mm per degree
             decimal distanceToMove = 80m; // input value is always less than circumfernce
@@ -3936,6 +4090,8 @@ namespace CL3_IF_DllSample
             int counter = 0;
             Console.WriteLine(newPosY);
 
+
+            //Keyence_thread();
             // Read the file and display it line by line.  
             foreach (string line in System.IO.File.ReadLines(@"C:\Users\Ankit Shah\Desktop\gcodefile1.txt"))
             {
@@ -3991,7 +4147,7 @@ namespace CL3_IF_DllSample
                                 }*/
                 bool flagA = false;
                 bool flagB = false;
-
+                //Keyence_thread();
 
                 if (line.Contains("G: 01"))
                 {
@@ -4026,6 +4182,7 @@ namespace CL3_IF_DllSample
 
 
                     Move_Method1(controller, controllerY, position, positionY);
+                    // port.Write("A");
 
 
                     while (true)
@@ -4057,6 +4214,7 @@ namespace CL3_IF_DllSample
                         if ((newPosX == position) && (newPosY == positionY))
                         {
                             System.Console.WriteLine("doneeeeeeeeeeeeeeeeeeeeeee");
+                            //port.Write("B");
                             break;
                         }
 
@@ -4171,10 +4329,10 @@ namespace CL3_IF_DllSample
                  //Console.WriteLine("controller Moved to {0}", newPos);
              }*/
 
-            controller.StopPolling();
-            controller.Disconnect(true);  //.DisableDevice()
-            controllerY.StopPolling();
-            controllerY.Disconnect(true);
+            /*            controller.StopPolling();
+                        controller.Disconnect(true);  //.DisableDevice()
+                        controllerY.StopPolling();
+                        controllerY.Disconnect(true);*/
 
 
         }
@@ -4241,17 +4399,272 @@ namespace CL3_IF_DllSample
 
         public void Keyence_thread()
         {
-            Thread thread5 = new Thread(() => KeyenceData());
-            thread5.Start();
+            //Thread thread5 = new Thread(() => KeyenceData());
+            //thread5.Start();
+
+            timer4.Stop();
+
+            timer1.Start();
+            // timer3.Start();
         }
 
-        public void KeyenceData()
+        private void timer1_Tick(object sender, EventArgs e)
         {
-           
+
+            /*            textBox6.Text = Math.Round(controller.Position, 3).ToString();
+                        textBox7.Text = Math.Round(controllerY.Position, 3).ToString();
+                        textBox8.Text = Math.Round(controllerZ.Position, 3).ToString();
+                        label15.Text = (heightData).ToString();*/
+
+            heightZLoop();
+            // Thread.Sleep(200);
+
+            if ((chart1.Series[0].Points.Count > 100) && (chart1.Series[1].Points.Count > 100))
+            {
+                chart1.Series[0].Points.RemoveAt(0);
+                chart1.Series[1].Points.RemoveAt(0);
+            }
+
+            chart1.ChartAreas[0].AxisX.Minimum = chart1.Series[0].Points[0].XValue;
+            chart1.ChartAreas[0].AxisX.Maximum = 100;
+
+            //chart1.ChartAreas[0].AxisX.Minimum = chart1.Series[0].Points[0].YValue;
+            chart1.ChartAreas[0].RecalculateAxesScale();
+
+
+            // incrementX += 1;
+
+        }
+
+
+        public void heightZLoop()
+        {
+
+/*            VelocityParameters velParsZ = controllerZ.GetVelocityParams();
+            velParsZ.MinVelocity = 60m;
+            velParsZ.MaxVelocity = 60m;
+            velParsZ.Acceleration = 120m; //0
+            controllerZ.SetVelocityParams(velParsZ);
+*/
+
+
+            // string filePath = "C:/Users/Ankit Shah/Desktop/PIDDoutput.txt";
+            /*
+                        decimal kp = 1m;
+                        decimal ki = 0.00001m;
+                        decimal kd = 0.00001m;
+                        decimal setpoint = 0.0m;
+                        decimal integralTerm = 0.0m;
+                        decimal prevError = 0.0m;
+                        decimal error = 0.0m;
+                        decimal proportionalTerm = 0.0m;
+                        decimal derivativeTerm = 0.0m;
+                        decimal controlSignal = 0.0m;*/
+
             //Console.WriteLine("hereeeeba");
             byte[] buffer = new byte[MaxRequestDataLength];
             using (PinnedObject pin = new PinnedObject(buffer))
             {
+
+                //Console.WriteLine("yooooo");
+                CL3IF_MEASUREMENT_DATA measurementData = new CL3IF_MEASUREMENT_DATA();
+                measurementData.outMeasurementData = new CL3IF_OUTMEASUREMENT_DATA[NativeMethods.CL3IF_MAX_OUT_COUNT];
+
+                int returnCode = NativeMethods.CL3IF_GetMeasurementData(CurrentDeviceId, pin.Pointer);
+
+                //Console.WriteLine(measurementData.outMeasurementData[1].measurementValue.ToString());
+
+
+                if (returnCode != NativeMethods.CL3IF_RC_OK)
+                {
+                    // OutputLogMessage("GetMeasurementData", returnCode);
+                    return;
+                }
+
+                // measurementData.addInfo = (CL3IF_ADD_INFO)Marshal.PtrToStructure(pin.Pointer, typeof(CL3IF_ADD_INFO));
+                int readPosition = Marshal.SizeOf(typeof(CL3IF_ADD_INFO));
+                //for (int i = 0; i < NativeMethods.CL3IF_MAX_OUT_COUNT; i++)
+                {
+                    measurementData.outMeasurementData[0] = (CL3IF_OUTMEASUREMENT_DATA)Marshal.PtrToStructure(pin.Pointer + readPosition, typeof(CL3IF_OUTMEASUREMENT_DATA));
+                    // readPosition += Marshal.SizeOf(typeof(CL3IF_OUTMEASUREMENT_DATA));
+                }
+
+                //  this.Invoke((MethodInvoker)(() => OutputLogMessage(measurementData.outMeasurementData[0].measurementValue.ToString())));
+
+                // OutputLogMessage("GetMeasurementData", returnCode, loggingProperties);
+                //Console.WriteLine(measurementData.outMeasurementData[0].measurementValue.ToString());
+                heightData = Convert.ToDecimal(measurementData.outMeasurementData[0].measurementValue.ToString()) / 10000;
+                //Console.WriteLine(heightData);
+                this.Invoke((MethodInvoker)(() => OutputLogMessage(heightData.ToString())));
+
+                pid();
+
+                //=================================
+                // decimal sensorValue = heightData;  // Replace with your actual sensor reading code
+
+                // Declare a variable to store the previous sensor value
+                // decimal previousValue = 0m;  // Initialize with an initial value
+
+                // Check if the current sensor value is within the specified range of the previous value
+                /*              if (Math.Round(Math.Abs(sensorValue - previousValue),3) <= 0.020m)
+                              {
+                                  // Do nothing or any other desired action
+                                 // Console.WriteLine("Sensor value is outside the acceptable range.");
+
+                              }
+                              else
+                              {
+                                  // Perform some action when the sensor value is outside the desired range
+                                  heightData = sensorValue;
+                                  pid();
+                                  // Add code here for the action you want to take
+                              }
+
+                              // Update the previous value with the current sensor value for the next iteration
+                              previousValue = sensorValue;
+
+                              */
+                //========================================
+
+                // this.Invoke((MethodInvoker)(() => textBox6.Text = controller.Position.ToString()));
+                //this.Invoke((MethodInvoker)(() => textBox7.Text = controllerY.Position.ToString()));
+                // this.Invoke((MethodInvoker)(() => textBox8.Text = controllerZ.Position.ToString()));
+
+                void pid()
+                {
+
+
+                    {
+
+                        //using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.Read))
+                        //using (var streamWriter = new StreamWriter(fileStream))
+
+                        {
+
+                            if (heightData != -99.9999m)
+                            {
+                                error = setpoint - heightData;
+
+                                // Calculate the proportional term
+                                proportionalTerm = kp * error;
+
+                                // Calculate the integral term
+                                integralTerm += ki * error;
+
+                                // Calculate the derivative term
+                                derivativeTerm = kd * (error - prevError);
+
+                                // Update the previous error
+                                prevError = error;
+
+                                // Calculate the control signal
+                                controlSignal = proportionalTerm + integralTerm + derivativeTerm;
+
+                                decimal sensorValue = heightData;
+
+                                if (Math.Round(Math.Abs(sensorValue - previousValue), 3) >= decimal.Parse(textBox5.Text))
+                                //if (Math.Round(Math.Abs(error), 3) >= 0.100m)
+                                {
+                                    if (!controllerZ.IsDeviceBusy)
+                                    {
+                                        controllerZ.MoveTo(decimal.Parse(textBox1.Text) + Math.Round(controlSignal, 3), 0);
+                                        //controllerZ.MoveRelative(0,Math.Round(controlSignal, 3),0);
+
+                                    }
+
+                                }
+
+                                previousValue = sensorValue;
+
+                                Console.WriteLine(DateTime.Now.Hour.ToString() + "/" + DateTime.Now.Minute.ToString() + "/" + DateTime.Now.Second.ToString() + "." + DateTime.Now.Millisecond.ToString() + " X: " + textBox6.Text + " Y: " + textBox7.Text + " Z: " + textBox8.Text + " H: " + Math.Round(heightData, 3) + " P: " + Math.Round(controlSignal, 3));
+                                //streamWriter.WriteLine(heightData + " " + controlSignal);
+
+
+                                // this.Invoke((MethodInvoker)(() => chart1.Series["PID_Data"].Points.AddY(controlSignal)));
+                                //this.Invoke((MethodInvoker)(() => chart1.Series["Laser"].Points.AddY(heightData)));
+
+                                chart1.Series["PID_Data"].Points.AddY(controlSignal);
+                                chart1.Series["Laser"].Points.AddY(heightData);
+
+                                //streamWriter.Close();
+
+
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private void timer2_Tick(object sender, EventArgs e)
+        {
+            byte[] buffer = new byte[MaxRequestDataLength];
+            using (PinnedObject pin = new PinnedObject(buffer))
+            {
+                //Console.WriteLine("yooooo");
+                CL3IF_MEASUREMENT_DATA measurementData = new CL3IF_MEASUREMENT_DATA();
+                measurementData.outMeasurementData = new CL3IF_OUTMEASUREMENT_DATA[NativeMethods.CL3IF_MAX_OUT_COUNT];
+
+                int returnCode = NativeMethods.CL3IF_GetMeasurementData(CurrentDeviceId, pin.Pointer);
+
+                //Console.WriteLine(measurementData.outMeasurementData[1].measurementValue.ToString());
+
+
+                if (returnCode != NativeMethods.CL3IF_RC_OK)
+                {
+                    // OutputLogMessage("GetMeasurementData", returnCode);
+                    return;
+                }
+
+                // measurementData.addInfo = (CL3IF_ADD_INFO)Marshal.PtrToStructure(pin.Pointer, typeof(CL3IF_ADD_INFO));
+                int readPosition = Marshal.SizeOf(typeof(CL3IF_ADD_INFO));
+                //for (int i = 0; i < NativeMethods.CL3IF_MAX_OUT_COUNT; i++)
+                {
+                    measurementData.outMeasurementData[0] = (CL3IF_OUTMEASUREMENT_DATA)Marshal.PtrToStructure(pin.Pointer + readPosition, typeof(CL3IF_OUTMEASUREMENT_DATA));
+                    // readPosition += Marshal.SizeOf(typeof(CL3IF_OUTMEASUREMENT_DATA));
+                }
+                /*
+                                List<LoggingProperty> loggingProperties = new List<LoggingProperty>() { };
+                                loggingProperties.Add(new LoggingProperty("triggerCount", measurementData.addInfo.triggerCount.ToString()));
+                                loggingProperties.Add(new LoggingProperty("pulseCount", measurementData.addInfo.pulseCount.ToString()));
+                                for (int i = 0; i < NativeMethods.CL3IF_MAX_OUT_COUNT; i++)
+                                {
+                                    string outNumber = "[OUT" + (i + 1) + "]";
+                                    loggingProperties.Add(new LoggingProperty(outNumber + "measurementValue", measurementData.outMeasurementData[i].measurementValue.ToString()));
+                                    loggingProperties.Add(new LoggingProperty(outNumber + "valueInfo", ((CL3IF_VALUE_INFO)measurementData.outMeasurementData[i].valueInfo).ToString()));
+                                    loggingProperties.Add(new LoggingProperty(outNumber + "judgeResult", measurementData.outMeasurementData[i].judgeResult.ToString()));
+                                }
+                */
+                // this.Invoke((MethodInvoker)(() => OutputLogMessage(measurementData.outMeasurementData[0].measurementValue.ToString())));
+
+                // OutputLogMessage("GetMeasurementData", returnCode, loggingProperties);
+                //Console.WriteLine(measurementData.outMeasurementData[0].measurementValue.ToString());
+                heightData = Convert.ToDecimal(measurementData.outMeasurementData[0].measurementValue.ToString()) / 10000;
+                //Console.WriteLine(heightData);
+                this.Invoke((MethodInvoker)(() => OutputLogMessage(heightData.ToString())));
+
+
+                // this.Invoke((MethodInvoker)(() => textBox6.Text = controller.Position.ToString()));
+                //this.Invoke((MethodInvoker)(() => textBox7.Text = controllerY.Position.ToString()));
+                // this.Invoke((MethodInvoker)(() => textBox8.Text = controllerZ.Position.ToString()));
+            }
+        }
+
+
+        public void KeyenceData()
+        {
+            //string filePath = "C: /Users/Ankit Shah/Desktop/gcodefile1.txt";
+
+            VelocityParameters velParsZ = controllerZ.GetVelocityParams();
+            velParsZ.MaxVelocity = 60m;
+            velParsZ.Acceleration = 120m;
+            controllerZ.SetVelocityParams(velParsZ);
+
+            //Console.WriteLine("hereeeeba");
+            byte[] buffer = new byte[MaxRequestDataLength];
+            using (PinnedObject pin = new PinnedObject(buffer))
+            {
+
                 while (true)
                 {
                     //Console.WriteLine("yooooo");
@@ -4288,93 +4701,445 @@ namespace CL3_IF_DllSample
                                         loggingProperties.Add(new LoggingProperty(outNumber + "judgeResult", measurementData.outMeasurementData[i].judgeResult.ToString()));
                                     }
                     */
-                    this.Invoke((MethodInvoker)(() => OutputLogMessage(measurementData.outMeasurementData[0].measurementValue.ToString())));
+                    // this.Invoke((MethodInvoker)(() => OutputLogMessage(measurementData.outMeasurementData[0].measurementValue.ToString())));
 
                     // OutputLogMessage("GetMeasurementData", returnCode, loggingProperties);
                     //Console.WriteLine(measurementData.outMeasurementData[0].measurementValue.ToString());
-                    heightData = Convert.ToDecimal( measurementData.outMeasurementData[0].measurementValue.ToString())/10000;
-                    Console.WriteLine(heightData);
+                    heightData = Convert.ToDecimal(measurementData.outMeasurementData[0].measurementValue.ToString()) / 10000;
+                    //Console.WriteLine(heightData);
                     this.Invoke((MethodInvoker)(() => OutputLogMessage(heightData.ToString())));
 
 
-                    this.Invoke((MethodInvoker)(() => textBox6.Text = controller.Position.ToString()));
-                    this.Invoke((MethodInvoker)(() => textBox7.Text = controllerY.Position.ToString()));
-                    this.Invoke((MethodInvoker)(() => textBox8.Text = controllerZ.Position.ToString()));
+                    // this.Invoke((MethodInvoker)(() => textBox6.Text = controller.Position.ToString()));
+                    //this.Invoke((MethodInvoker)(() => textBox7.Text = controllerY.Position.ToString()));
+                    // this.Invoke((MethodInvoker)(() => textBox8.Text = controllerZ.Position.ToString()));
 
                     if (!controllerZ.IsDeviceBusy)
                     {
-                        Thread threadZ = new Thread(() => MoveZ(controllerZ, heightData));
+                        Thread threadZ = new Thread(() => MoveZ_PID(controller, controllerZ, heightData));
                         threadZ.Start();
+
                     }
 
-                   /* if(!(heightData >= -0.09m) && (heightData <= 0.09m))
-                    {
-                        try
-                        {
-                           // Console.WriteLine("Moving controllerX to {0}", position);
-                            controllerZ.MoveTo(6.4m, 0);
 
-                        }
-                        catch (Exception)
-                        {
-                            Console.WriteLine("Failed to move to position");
-                            // Console.ReadKey();
-                            return;
-                        }
-                    }*/
+
+
+
+                    /*
+                                        if ((heightData <= 0.00m) && (heightData != -99.9999m))
+                                        {
+                                            if (!controllerZ.IsDeviceBusy)
+                                            {
+                                                decimal abc = Math.Round(129.369240m + heightData, 3);
+                                                controllerZ.MoveTo(abc, 0);
+                                                Console.WriteLine("print: " + abc);
+                                            }
+                                            *//*try
+                                            {
+                                                decimal abc = Math.Round(129.369240m + heightData, 3);
+                                                controllerZ.MoveTo(abc, 0);
+                                                Console.WriteLine("print: " + abc);
+
+                                                // Console.WriteLine(129.369240m + heightData);
+                                            }
+                                            catch (Exception)
+                                            {
+                                                Console.WriteLine("Failed to move to position");
+                                                // Console.ReadKey();
+                                                return;
+                                            }*//*
+                                        }
+
+                                        else if ((heightData >= 0.00m) && (heightData != -99.9999m))
+                                        {
+                                            if (!controllerZ.IsDeviceBusy)
+                                            {
+                                                decimal abc = Math.Round(129.369240m - heightData, 3);
+                                                controllerZ.MoveTo(abc, 0);
+                                                Console.WriteLine("print: " + abc);
+                                            }
+
+                                           *//* try
+                                            {
+                                                decimal abc = Math.Round(129.369240m - heightData, 3);
+                                                controllerZ.MoveTo(abc, 0);
+                                                Console.WriteLine("print: " + abc);
+                                                // Console.WriteLine(129.369240m - heightData);
+
+                                            }
+                                            catch (Exception)
+                                            {
+                                                Console.WriteLine("Failed to move to position");
+                                                // Console.ReadKey();
+                                                return;
+                                            }*//*
+                                        }
+                    */
+
+
+
+
+
+
+                    /* if(!(heightData >= -0.09m) && (heightData <= 0.09m))
+                     {
+                         try
+                         {
+                            // Console.WriteLine("Moving controllerX to {0}", position);
+                             controllerZ.MoveTo(6.4m, 0);
+
+                         }
+                         catch (Exception)
+                         {
+                             Console.WriteLine("Failed to move to position");
+                             // Console.ReadKey();
+                             return;
+                         }
+                     }*/
+
 
                 }
             }
         }
 
-        private void MoveZ(Thorlabs.MotionControl.IntegratedStepperMotorsCLI.LongTravelStage controllerZ, decimal heightData)
+        private void MoveLaser(Thorlabs.MotionControl.IntegratedStepperMotorsCLI.LongTravelStage controller, Thorlabs.MotionControl.IntegratedStepperMotorsCLI.LongTravelStage controllerZ, decimal heightData)
+        {
+
+            while (controllerZ.Position - heightData != 129.369m)
+            {
+                if ((heightData > 0.00m) && (heightData != -99.9999m))
+                {
+                    if (!controllerZ.IsDeviceBusy)
+                    {
+                        controllerZ.MoveJog(Thorlabs.MotionControl.GenericMotorCLI.MotorDirection.Backward, 0);
+                    }
+                }
+
+                if ((heightData < 0.00m) && (heightData != -99.9999m))
+                {
+                    if (!controllerZ.IsDeviceBusy)
+                    {
+                        controllerZ.MoveJog(Thorlabs.MotionControl.GenericMotorCLI.MotorDirection.Forward, 0);
+                    }
+                }
+            }
+
+
+            if ((heightData > 0.00m) && (heightData != -99.9999m))
+            {
+                while (controllerZ.Position != 129.369m - heightData)
+                {
+                    if (!controllerZ.IsDeviceBusy)
+                    {
+                        controllerZ.MoveJog(Thorlabs.MotionControl.GenericMotorCLI.MotorDirection.Backward, 0);
+                    }
+                }
+                controllerZ.Stop(0);
+            }
+
+            if ((heightData < 0.00m) && (heightData != -99.9999m))
+            {
+                while (controllerZ.Position != 129.369m + heightData)
+                {
+                    if (!controllerZ.IsDeviceBusy)
+                    {
+                        controllerZ.MoveJog(Thorlabs.MotionControl.GenericMotorCLI.MotorDirection.Forward, 0);
+                    }
+                }
+                controllerZ.Stop(0);
+            }
+
+        }
+
+        private void zzzzz()
+        {
+            double amplitude = 1.0;
+            double frequency = 1.0 / 10.0; // 1 cycle per unit
+            double x = 0.0;
+            /*            while (!controllerZ.IsDeviceBusy)
+                        {
+                            controllerZ.MoveTo(50m, 0);
+                        }*/
+            //controller.SetVelocityParams(5, 10);
+            controllerZ.SetVelocityParams(20, 20);
+            while (true)
+            {
+                /*                if (!controller.IsDeviceBusy && controllerZ.Position == 100)
+                                {
+
+                                    controller.MoveTo(0, 0);
+
+                                }*/
+                decimal y = (Decimal)(amplitude * Math.Sin(2 * Math.PI * frequency * x));
+                Console.WriteLine("x = {0}, y = {1}", x, y);
+                x += 0.1; // Step size of 0.1 units
+
+                if (y < 0)
+                {
+                    if (!controllerZ.IsDeviceBusy)
+                    {
+                        controllerZ.MoveTo(50m + y, 0);
+                    }
+                    /*try
+                    {
+                        controllerZ.MoveTo(50m + y, 0);
+                    }
+                    catch (Exception)
+                    {
+                        Console.WriteLine("Failed to move to position");
+                        // Console.ReadKey();
+                        return;
+                    }*/
+                }
+
+                if (y > 0)
+                {
+                    if (!controllerZ.IsDeviceBusy)
+                    {
+                        controllerZ.MoveTo(50m - y, 0);
+                    }
+                    /*try
+                    {
+                        controllerZ.MoveTo(50m - y, 0);
+                    }
+                    catch (Exception)
+                    {
+                        Console.WriteLine("Failed to move to position");
+                        // Console.ReadKey();
+                        return;
+                    }*/
+                }
+                Console.WriteLine(controllerZ.Position);
+                /*   if (!controller.IsDeviceBusy && controllerZ.Position == 0)
+                   {
+                       controller.MoveTo(100, 0);
+                   }*/
+
+            }
+
+        }
+
+        private void MoveZ_PID(Thorlabs.MotionControl.IntegratedStepperMotorsCLI.LongTravelStage controller, Thorlabs.MotionControl.IntegratedStepperMotorsCLI.LongTravelStage controllerZ, decimal heightData)
+        {
+            string filePath = "C:/Users/Ankit Shah/Desktop/PIDDoutput.txt";
+
+            decimal kp = 0.1m;
+            decimal ki = 0.5m;
+            decimal kd = 0.2m;
+            decimal setpoint = 0.0m;
+            decimal integralTerm = 0.0m;
+            decimal prevError = 0.0m;
+            decimal error = 0.0m;
+            decimal proportionalTerm = 0.0m;
+            decimal derivativeTerm = 0.0m;
+            decimal controlSignal = 0.0m;
+
+            // if (!File.Exists(filePath))
+            {
+
+                //using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.Read))
+                //using (var streamWriter = new StreamWriter(fileStream))
+
+                {
+                    if (heightData != -99.9999m)
+                    {
+                        error = setpoint - heightData;
+
+                        // Calculate the proportional term
+                        proportionalTerm = kp * error;
+
+                        // Calculate the integral term
+                        integralTerm += ki * error;
+
+                        // Calculate the derivative term
+                        derivativeTerm = kd * (error - prevError);
+
+                        // Update the previous error
+                        prevError = error;
+
+                        // Calculate the control signal
+                        controlSignal = proportionalTerm + integralTerm + derivativeTerm;
+
+
+                        if (!controllerZ.IsDeviceBusy)
+                        {
+                            controllerZ.MoveTo(Math.Round(130.761m + controlSignal, 2), 0);
+
+                        }
+                        Console.WriteLine(controllerZ.Position + "   " + heightData + "   " + controlSignal);
+                        //streamWriter.WriteLine(heightData + " " + controlSignal);
+
+
+                        // this.Invoke((MethodInvoker)(() => chart1.Series["PID_Data"].Points.AddY(controlSignal)));
+                        //this.Invoke((MethodInvoker)(() => chart1.Series["Laser"].Points.AddY(heightData)));
+
+                        // chart1.Series["PID_Data"].Points.AddY(controlSignal);
+                        // chart1.Series["Laser"].Points.AddY(heightData);
+
+                        //streamWriter.Close();
+
+
+                    }
+                }
+            }
+
+        }
+
+
+
+
+
+
+
+
+        private void MoveZ(Thorlabs.MotionControl.IntegratedStepperMotorsCLI.LongTravelStage controller, Thorlabs.MotionControl.IntegratedStepperMotorsCLI.LongTravelStage controllerZ, decimal heightData)
         {
             VelocityParameters velParsZ = controllerZ.GetVelocityParams();
             velParsZ.MaxVelocity = 60m;
             velParsZ.Acceleration = 120m;
             controllerZ.SetVelocityParams(velParsZ);
 
-            if ((heightData <= -1m) && (heightData != -99.9999m))
+            /*
+                        if (heightData > 0)
+                        {
+                            while (heightData != 0)
+                            {
+                                controllerZ.MoveContinuousAtVelocity(Thorlabs.MotionControl.GenericMotorCLI.MotorDirection.Forward, 5);
+                                // controllerZ.JogContinuous(Thorlabs.MotionControl.GenericMotorCLI.MotorDirection.Forward);
+                            }
+                        }
+
+                        if (heightData < 0)
+                        {
+                            while (heightData != 0)
+                            {
+                                controllerZ.MoveContinuousAtVelocity(Thorlabs.MotionControl.GenericMotorCLI.MotorDirection.Backward, 5);
+                                // controllerZ.JogContinuous(Thorlabs.MotionControl.GenericMotorCLI.MotorDirection.Backward);
+                                //controllerZ.JogContinuous(0);
+                            }
+                        }
+
+                    */
+            //=============================================================================
+            /*            while (true)  /// thread ma halde naya function banayera
+                        {
+
+                            newPosX = controller.Position;
+                            newPosY = controllerY.Position;
+
+                            //this.Invoke((MethodInvoker)(() => textBox6.Text = newPosX.ToString()));
+                            // this.Invoke((MethodInvoker)(() => textBox7.Text = newPosY.ToString()));
+                            // this.Invoke((MethodInvoker)(() => textBox8.Text = controllerZ.Position.ToString()));
+
+                            System.Console.WriteLine(newPosX + "\t" + newPosY);
+
+
+                            if ((newPosX == position) && (newPosY == positionY))
+                            {
+                                System.Console.WriteLine("doneeeeeeeeeeeeeeeeeeeeeee");
+                                port.Write("B");
+                                //printer();
+                                //Console.ReadKey();
+                                break;
+                            }
+
+
+                        }
+            */
+
+            //------------------
+            decimal abc = 0m;
+            decimal newPosZ = 0.0m;
+
+            decimal currentZHeight = controllerZ.Position;
+
+            if (!((Math.Round(currentZHeight - heightData, 2) >= 130.66m) && (Math.Round(currentZHeight - heightData, 2) <= 130.86m)))
             {
-                try
+                abc = Math.Round(currentZHeight - heightData, 2);
+                if (!controllerZ.IsDeviceBusy)
                 {
-                    controllerZ.MoveTo(11m + heightData,0);
+                    controllerZ.MoveTo(abc, 0);
                 }
-                catch (Exception)
+                // Console.WriteLine(abc);
+            }
+            while (true)
+            {
+                newPosZ = controllerZ.Position;
+
+                if (newPosZ == abc)
                 {
-                    Console.WriteLine("Failed to move to position");
-                    // Console.ReadKey();
-                    return;
+                    System.Console.WriteLine("ZZZdoneeeeeeeeeeeeeeeeeeeeeee");
+
+                    break;
                 }
             }
 
-            else if((heightData >= 1m) && (heightData != -99.9999m))
-                {
-                    try
-                    {
-                        controllerZ.MoveTo(11 - heightData, 0);
-                    }
-                catch (Exception)
-                {
-                    Console.WriteLine("Failed to move to position");
-                    // Console.ReadKey();
-                    return;
-                }
-            }
 
-/*            else if ((heightData == -99.9999m))
-            {
-                try
-                {
-                    controllerZ.MoveTo(10, 0);
-                }
-                catch (Exception)
-                {
-                    Console.WriteLine("Failed to move to position");
-                    // Console.ReadKey();
-                    return;
-                }
-            }*/
+            /*            if ((heightData <= -1.5m) && (heightData != -99.9999m))
+                        {
+                            decimal abc = 129.369240m + Math.Round(heightData, 3);
+                            controllerZ.MoveTo(abc, 0);
+
+                        }
+
+                        else if ((heightData >= 2m) && (heightData != -99.9999m))
+                        {
+                            decimal abc = 129.369240m - Math.Round(heightData, 3);
+                            controllerZ.MoveTo(abc, 0);
+
+                        }*/
+            //------------------------
+            /* if ((heightData <= -1.5m) && (heightData != -99.9999m))
+             {
+                 try
+                 {
+                     //controllerZ.MoveTo(89.477m + heightData, 0);
+                     decimal abc = 129.369240m + Math.Round(heightData,3);
+                     Console.WriteLine("print: " + abc);
+
+                    // Console.WriteLine(129.369240m + heightData);
+                 }
+                 catch (Exception)
+                 {
+                     Console.WriteLine("Failed to move to position");
+                     // Console.ReadKey();
+                     return;
+                 }
+             }
+
+             else if ((heightData >= 2m) && (heightData != -99.9999m))
+             {
+                 try
+                 {
+                     decimal abc = 129.369240m - heightData;
+                     Console.WriteLine("print: " + abc);
+                     //controllerZ.MoveTo(89.477m - heightData, 0);
+                     // Console.WriteLine(129.369240m - heightData);
+
+                 }
+                 catch (Exception)
+                 {
+                     Console.WriteLine("Failed to move to position");
+                     // Console.ReadKey();
+                     return;
+                 }
+             }*/
+
+            //----------------------------------------------------------------------------------------------------
+
+            /*            else if ((heightData == -99.9999m))
+                        {
+                            try
+                            {
+                                controllerZ.MoveTo(10, 0);
+                            }
+                            catch (Exception)
+                            {
+                                Console.WriteLine("Failed to move to position");
+                                // Console.ReadKey();
+                                return;
+                            }
+                        }*/
 
             /* if (!(heightData >= -0.09m) && (heightData <= 0.09m) && (heightData != -99.9999m))
              {
@@ -4407,13 +5172,549 @@ namespace CL3_IF_DllSample
         private void button4_Click(object sender, EventArgs e)
         {
             Move_AntiClockthread();
-           // Console.WriteLine("yhehehehehehehehehe"+heightData);
+            // Console.WriteLine("yhehehehehehehehehe"+heightData);
         }
+
+        private Boolean printRunning = false;
 
         private void button8_Click(object sender, EventArgs e)
         {
-            testt(controller, controllerY, controllerZ);
+            //Keyence_thread();
+            //testt(controller, controllerY, controllerZ,port);
+            // print(controller, controllerY, controllerZ);
 
+            /*            Thread threadPrint = new Thread(() => print(controller, controllerY, controllerZ));
+                        threadPrint.Start();*/
+            printRunning = true;
+            printDesign();
+
+        }
+
+        private void printDesign()
+        {
+            timer5.Start();
+            Thread threadPrint = new Thread(() => designPrintTest(controller, controllerY, controllerZ));
+            threadPrint.Start();
+
+        }
+
+        private void print(Thorlabs.MotionControl.IntegratedStepperMotorsCLI.LongTravelStage controller, Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo controllerY, Thorlabs.MotionControl.IntegratedStepperMotorsCLI.LongTravelStage controllerZ)
+        {
+            Decimal newPosX = controller.Position;
+            Decimal newPosY = controllerY.Position;
+            Decimal position = 0.00m;
+            Decimal positionY = 0.00m;
+            double diameter = 8.25; // input value mm  //textBox2.text;
+            double circumference = 2 * Math.PI * (diameter / 2);
+            double distancePerDegree = ((circumference) / 360); //mm per degree
+            decimal distanceToMove = 0m; // input value is always less than circumfernce
+            //decimal positionY = distanceToMove / (decimal)distancePerDegree;
+
+            Console.WriteLine(positionY);
+
+            string[] lines = System.IO.File.ReadAllLines(@"C:\Users\Ankit Shah\Desktop\gcodefile1.txt");
+
+            // Display the file contents by using a foreach loop
+            //System.Console.WriteLine("Contents of WriteLines2.txt = ");
+            foreach (string line in lines)
+            {
+                // Use a tab to indent each line of the file.
+                // Console.WriteLine("\t" + line);
+                // Console.Read();
+
+                if (line.Contains("G: 01"))
+                {
+                    var numbers = Regex.Matches(line, @"\d+\.*\d*").OfType<Match>().Select(m => decimal.Parse(m.Value)).ToArray();
+                    //Console.WriteLine("Move Method Called");
+                    Console.Write(numbers[1] + "\t");
+                    Console.WriteLine(numbers[2]);
+
+                    position = numbers[1];
+                    distanceToMove = numbers[2]; // input value is always less than circumfernce
+                    positionY = (System.Math.Ceiling((distanceToMove / (decimal)distancePerDegree) * 1000) / 1000);//distanceToMove / (decimal)distancePerDegree; //(System.Math.Ceiling((distanceToMove / (decimal)distancePerDegree) * 1000) / 1000)
+
+
+
+                    // Console.ReadKey();
+                    /*
+                                        decimal X_slice = 0;
+                                        decimal Y_slice = 0;
+
+
+                                        decimal delta_x = (position - newPosX) / 10m;
+                                        decimal delta_y = (positionY - newPosY) / 10m;
+
+                                        //Console.WriteLine("value: {0} {1} ", delta_x, delta_y);
+
+                                        for (int i = 1; i <= 10; i++)
+                                        {
+
+                                            X_slice = newPosX + delta_x * i;
+                                            Y_slice = newPosY + delta_y * i;
+
+                                            //Console.WriteLine("(" + X_slice + "," + Y_slice + ")");
+                                            //printer((System.Math.Ceiling((X_slice) * 1000) / 1000) , (System.Math.Ceiling((Y_slice) * 1000) / 1000));
+                                        }*/
+
+
+
+
+                    printer(position, positionY);
+
+                    //Thread.Sleep(500);
+                    //controllerY.MoveTo(positionY, 0);
+                    //controller.MoveTo(position, 0);
+
+
+                    /*                    while (controller.Status.IsMoving && controllerY.Status.IsMoving)
+                                        {
+                                            newPosX = controller.Position;
+                                            newPosY = controllerY.Position;
+
+                                            System.Console.WriteLine(newPosX + "\t" + newPosY);
+
+                                        }*/
+
+
+                    while (true)  /// thread ma halde naya function banayera
+                    {
+
+                        newPosX = controller.Position;
+                        newPosY = controllerY.Position;
+
+
+                        System.Console.WriteLine(newPosX + "\t" + newPosY);
+
+
+                        if ((newPosX == position) && (newPosY == positionY))
+                        {
+                            System.Console.WriteLine("doneeeeeeeeeeeeeeeeeeeeeee");
+                            port.Write("B");
+                            //printer();
+                            //Console.ReadKey();
+                            break;
+                        }
+
+
+                    }
+                }
+
+                // }
+            }
+
+            void printer(decimal X_slice, decimal Y_slice)
+            {
+                Thread.Sleep(150);
+                port.Write("A");
+                controllerY.MoveTo(positionY, 0);
+                controller.MoveTo(position, 0);
+            }
+        }
+
+        private void designPrint(Thorlabs.MotionControl.IntegratedStepperMotorsCLI.LongTravelStage controller, Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo controllerY, Thorlabs.MotionControl.IntegratedStepperMotorsCLI.LongTravelStage controllerZ)
+        {
+
+            double diameter = double.Parse(textBox2.Text); // input value mm  //textBox2.text;
+            double circumference = 2 * Math.PI * (diameter / 2);
+            double distancePerDegree = ((circumference) / 360);
+            Decimal position = 0m;
+            Decimal positionY = 0m;
+            Decimal distanceToMove = 0m;
+            Decimal newPosX = controller.Position;
+            Decimal newPosY = controllerY.Position;
+
+            string[] lines = System.IO.File.ReadAllLines(@"C:\Users\Ankit Shah\Desktop\designFile2.txt");
+
+            foreach (string line in lines)
+            {
+                coordinateList.Add(line);
+            }
+
+            foreach (string elements in coordinateList)
+            {
+                //   Console.WriteLine(elements);
+                string[] parts = elements.Split(',');
+
+                if (parts.Length == 2)
+                {
+                    if (decimal.TryParse(parts[0], out decimal xCoordinate) && decimal.TryParse(parts[1], out decimal yCoordinate))
+                    {
+
+                        position = decimal.Round(xCoordinate, 3);
+                        distanceToMove = yCoordinate; // input value is always less than circumfernce
+                                                      // positionY = decimal.Round((System.Math.Ceiling((distanceToMove / (decimal)distancePerDegree) * 1000) / 1000),3);
+                        positionY = (System.Math.Ceiling((distanceToMove / (decimal)distancePerDegree) * 1000) / 1000);
+                        printer(position, positionY);
+
+                        while (true)  /// thread ma halde naya function banayera 
+                        {
+                            // (controller.IsDeviceBusy && controllerY.IsDeviceBusy)
+                            /*newPosX = decimal.Round(controller.Position,3);
+                            newPosY = decimal.Round(controllerY.Position,3);*/
+                            newPosX = controller.Position;
+                            newPosY = controllerY.Position;
+                            System.Console.WriteLine(newPosX + "\t" + newPosY + "\t" + positionY);
+
+                            if ((newPosX == position) && (newPosY == positionY))
+                            {
+                                // if ((controller.IsDeviceBusy && controllerY.IsDeviceBusy)) 
+                                System.Console.WriteLine("doneeeeeeeeeeeeeeeeeeeeeee");
+                                port.Write("B");
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+
+            void printer(decimal X_slice, decimal Y_slice)
+            {
+                controllerY.StopImmediate();
+                controller.StopImmediate();
+                Thread.Sleep(10);
+                port.Write("A");
+                controllerY.MoveTo(positionY, 0);
+                controller.MoveTo(position, 0);
+                Thread.Sleep(10);
+
+
+
+                /*                //controller.TargetPosition;
+                                controller.RequestStatus();
+                                controller.RequestPosition();
+                                //controller.DevicePosition;*/
+
+
+
+            }
+
+            coordinateList.Clear();
+        }
+        private void designPrintTest(Thorlabs.MotionControl.IntegratedStepperMotorsCLI.LongTravelStage controller, Thorlabs.MotionControl.KCube.DCServoCLI.KCubeDCServo controllerY, Thorlabs.MotionControl.IntegratedStepperMotorsCLI.LongTravelStage controllerZ)
+        {
+
+            //-------------------------------------------------
+            decimal velX = 0m;
+            decimal velY = 0m;
+            string[] partsXY = VelXY.Split(',');
+
+            if (partsXY.Length == 2)
+            {
+                if (decimal.TryParse(partsXY[0], out decimal xVelocity) && decimal.TryParse(partsXY[1], out decimal yVelocity))
+                {
+                    // Console.WriteLine(xCoordinate + "\t" + yCoordinate);
+                    velX = xVelocity;
+                    velY = yVelocity;
+                }
+            }
+
+            Console.WriteLine(velX +"   "+ velY);
+
+            controller.SetBacklash(0);
+            controllerZ.SetBacklash(0);
+
+            VelocityParameters velPars = controller.GetVelocityParams();
+            velPars.MaxVelocity = velX;
+            velPars.Acceleration = 60;//decimal.Parse(textBox14.Text);
+            controller.SetVelocityParams(velPars);
+
+            VelocityParameters velParsY = controllerY.GetVelocityParams();
+            velParsY.MaxVelocity = velY;
+            velParsY.Acceleration = 60;//decimal.Parse(textBox14.Text);
+            controllerY.SetVelocityParams(velParsY); 
+
+            //--------------------------------------------------
+
+            Decimal position = 0m;
+            Decimal positionY = 0m;
+            Decimal distanceToMove = 0m;
+           // var watch = new System.Diagnostics.Stopwatch();
+
+            string[] lines = System.IO.File.ReadAllLines(@"C:\Users\Ankit Shah\Desktop\designFile2.txt");
+
+            foreach (string line in lines)
+            {
+                coordinateList.Add(line);
+            }
+
+            
+            foreach (string elements in coordinateList)
+            {
+                //   Console.WriteLine(elements);
+                string[] parts = elements.Split(',');
+
+                if (parts.Length == 2 && printRunning == true)
+                {
+                    if (decimal.TryParse(parts[0], out decimal xCoordinate) && decimal.TryParse(parts[1], out decimal yCoordinate))
+                    {
+                        
+                            position = decimal.Round(xCoordinate, 3);
+                            distanceToMove = yCoordinate; // input value is always less than circumfernce
+                            positionY = decimal.Round((System.Math.Ceiling((distanceToMove / (decimal)distancePerDegree) * 1000) / 1000), 3);
+
+                            posnX = position;
+                            posnY = positionY;
+
+
+                        //port.Write("A");
+                        //watch.Start();
+
+                        while (true)  /// thread ma halde naya function banayera 
+                        {
+                            // (controller.IsDeviceBusy && controllerY.IsDeviceBusy)
+                            /*newPosX = decimal.Round(controller.Position,3);
+                            newPosY = decimal.Round(controllerY.Position,3);*/
+
+                            //newPosX = controller.Position;
+                            //newPosY = controllerY.Position;
+
+                            //System.Console.WriteLine(newPosX + "\t" + newPosY + "\t" + positionY);
+
+                            if (!controller.IsDeviceBusy && !controllerY.IsDeviceBusy)
+                            {
+                                //Console.WriteLine()
+                                printer(position, positionY);
+                                break;
+                            }
+
+                            /*                          if ((newPosX == position) && (newPosY == positionY))
+                                                      {
+                                                     // if ((controller.IsDeviceBusy && controllerY.IsDeviceBusy)) 
+                                                          System.Console.WriteLine("doneeeeeeeeeeeeeeeeeeeeeee");
+                                                          port.Write("B");
+                                                          break;
+                                                      }*/
+                        }
+
+                    }
+                }
+            }
+            //Thread.Sleep(1000);
+            //port.Write("B");
+
+            void printer(decimal X_slice, decimal Y_slice)
+            {
+                // controllerY.StopImmediate();
+                //controller.StopImmediate();
+                Thread.Sleep(100);
+                port.Write("A");
+                controllerY.MoveTo(positionY, 0);
+                controller.MoveTo(position, 0);
+
+                Thread.Sleep(10);
+
+            }
+
+            coordinateList.Clear();
+        }
+
+        private static ArrayList line(double x_start, double y_start, double x_end, double y_end, double Resolution)
+        {
+            ArrayList myList = new ArrayList();
+
+
+            double X_slice = 0;
+            double Y_slice = 0;
+
+            double delta_xx = (x_end - x_start);
+            double delta_yy = (y_end - y_start);
+
+            double delta_x = (x_end - x_start) / Resolution;
+            double delta_y = (y_end - y_start) / Resolution;
+
+            myListArcs.Add(x_start + "," + y_start);
+
+
+            if (delta_xx == 0 || delta_yy == 0)
+            {
+
+                // X_slice = x_start;
+                //Y_slice = y_start;
+
+                // X_slice = x_end;
+                // Y_slice = y_end;
+
+                // Console.WriteLine("(" + X_slice + "," + Y_slice + ")");
+
+                // myListArcs.Add(x_start + "," + y_start + "\n" + x_end + "," + y_end);
+
+                // myListArcs.Add(x_start + "," + y_start);
+                myListArcs.Add(x_end + "," + y_end);
+
+                // Console.WriteLine(myList[0]);
+                //  Console.WriteLine("herebaaa222");
+            }
+
+            else
+            {
+
+
+                //Console.WriteLine("value: {0} {1} ", delta_x, delta_y);
+
+                for (int i = 1; i <= Resolution; i++)
+                {
+
+                    X_slice = x_start + delta_x * i;
+                    Y_slice = y_start + delta_y * i;
+
+                    myListArcs.Add(X_slice + "," + Y_slice);
+                    //Console.WriteLine(myList[i-1]);
+
+                    // Console.WriteLine("(" + X_slice + "," + Y_slice + ")");
+                    // Console.WriteLine("herebaaa");
+
+
+                }
+            }
+
+            return myList;
+        }
+
+
+        private static double atan3(double dy, double dx)
+        {
+            double a = Math.Atan2(dy, dx);
+
+            if (a < 0)
+            {
+                a = (Math.PI * 2.0) + a;
+            }
+            return a;
+        }
+
+        private static ArrayList arcs(double cx, double cy, double sx, double sy, double x, double y, int dir)
+        {
+            // ArrayList myListArcs = new ArrayList();
+
+
+            double dx = sx - cx;
+            double dy = sy - cy;
+
+            //get radius
+            double radius = Math.Sqrt(dx * dx + dy * dy);
+
+            //find angle of arc (sweep)
+            double angle1 = atan3(dy, dx);
+            double angle2 = atan3(y - cy, x - cx);
+
+            double theta = angle2 - angle1;
+            //Console.WriteLine((theta * 180) / Math.PI);
+
+
+            if (dir < 0 && theta < 0)
+            {
+                angle2 += 2 * Math.PI;
+            }//clockwise
+            else if (dir > 0 && theta > 0)
+            {
+                angle1 += 2 * Math.PI;
+            }//CCW
+
+            theta = angle2 - angle1;
+            // Console.WriteLine((theta * 180) / Math.PI);
+
+            // get length of arc
+            // float circ=PI*2.0*radius;
+            // float len=theta*circ/(PI*2.0);
+            // simplifies to
+            double len = Math.Abs(theta) * radius;
+            //Console.WriteLine(len);
+
+            double MM_PER_SEGMENT = 1;
+
+            int i, segments = (int)(Math.Ceiling(len * MM_PER_SEGMENT));
+
+            //Console.WriteLine(segments);
+            double nx, ny, angle3, scale;
+
+
+
+            for (i = 0; i < segments; ++i)
+            {
+                // interpolate around the arc
+                scale = ((double)i) / ((double)segments);
+
+                angle3 = (theta * scale) + angle1;
+                nx = cx + Math.Cos(angle3) * radius;
+                ny = cy + Math.Sin(angle3) * radius;
+
+                //Console.WriteLine(scale);
+                //Console.WriteLine(angle3);
+                lineArc(sx, sy, nx, ny, 10);
+                //  Console.WriteLine("(" + nx+", "+ny +")");
+
+                // ArrayList myArrayList = line(sx, sy, nx, ny, 10);
+                //myListArcs.Add(myArrayList[0]);
+                myListArcs.Add(nx + "," + ny);
+
+                sx = nx;
+                sy = ny;
+                // send it to the planner
+                // line(nx, ny);
+            }
+            lineArc(sx, sy, x, y, 10);
+
+            return myListArcs;
+        }
+
+        private static ArrayList lineArc(double x_start, double y_start, double x_end, double y_end, double Resolution)
+        {
+            ArrayList myList = new ArrayList();
+
+
+            double X_slice = 0;
+            double Y_slice = 0;
+
+            double delta_xx = (x_end - x_start);
+            double delta_yy = (y_end - y_start);
+
+            double delta_x = (x_end - x_start) / Resolution;
+            double delta_y = (y_end - y_start) / Resolution;
+
+            //myListArcs.Add(x_start + "," + y_start);
+
+            if (delta_xx == 0 || delta_yy == 0)
+            {
+
+                // X_slice = x_start;
+                //Y_slice = y_start;
+
+                // X_slice = x_end;
+                // Y_slice = y_end;
+
+                //  Console.WriteLine("(" + X_slice + "," + Y_slice + ")");
+
+                // myListArcs.Add(x_start + "," + y_start + "\n" + x_end + "," + y_end);
+
+                myListArcs.Add(x_end + "," + y_end);
+                // Console.WriteLine(myList[0]);
+                //  Console.WriteLine("herebaaa222");
+            }
+
+            else
+            {
+
+
+                //Console.WriteLine("value: {0} {1} ", delta_x, delta_y);
+
+                for (int i = 1; i <= Resolution; i++)
+                {
+
+                    X_slice = x_start + delta_x * i;
+                    Y_slice = y_start + delta_y * i;
+
+                    myListArcs.Add(X_slice + "," + Y_slice);
+                    //Console.WriteLine(myList[i-1]);
+
+                    //   Console.WriteLine("(" + X_slice + "," + Y_slice + ")");
+                    // Console.WriteLine("herebaaa");
+
+
+                }
+            }
+
+            return myList;
         }
 
         private void textBox3_TextChanged(object sender, EventArgs e)
@@ -4466,7 +5767,12 @@ namespace CL3_IF_DllSample
         }
         private void button6_Click(object sender, EventArgs e)
         {
-            decimal position = 0.001m;
+
+            if (!controller.IsDeviceBusy)
+            {
+                controller.MoveTo(20,0);
+            }
+/*            decimal position = 0.001m;
             //decimal positionY = 0.001m;
             if (Convert.ToDecimal(textBox4.Text) != 0)
             {
@@ -4488,40 +5794,46 @@ namespace CL3_IF_DllSample
             Move_Method_Home(controller, position);
             Console.WriteLine("Home Method Called");
 
-            Thread thread5 = new Thread(() => Move_HomeX(controller,position));
+            Thread thread5 = new Thread(() => Move_HomeX(controller, position));
             thread5.Start();
 
-            //while (newPosY != 0 && newPosX != 0)
-           
+            //while (newPosY != 0 && newPosX != 0)*/
+
         }
 
         private void button7_Click(object sender, EventArgs e)
         {
-            //decimal position = 0.001m;
-            decimal positionY = 0.001m;
-           /* if (Convert.ToDecimal(textBox4.Text) != 0)
+
+            if (!controllerY.IsDeviceBusy)
             {
-               // VelocityParameters velPars = controller.GetVelocityParams();
-                VelocityParameters velParsY = controllerY.GetVelocityParams();
-                //velPars.MaxVelocity = 20m;
-                velParsY.MaxVelocity = 100m;
-                //velPars.Acceleration = 5m;
-                velParsY.Acceleration = 40m;
-                controllerY.SetHomingVelocity(5);
-                // controllerY.SetHomingVelocity(100);
-                controller.SetVelocityParams(velParsY); //SetHomeVelocity //isDeviceBusy //isDeviceAvailable
-                //controllerY.SetVelocityParams(velParsY);
+                controllerY.MoveTo(0, 0);
+            }
 
-                //controller.SetVelocityParams(velPars);
-                // controllerY.SetVelocityParams(velParsY);
-            }*/
+            /*            //decimal position = 0.001m;
+                        decimal positionY = 0.001m;
+                        *//* if (Convert.ToDecimal(textBox4.Text) != 0)
+                         {
+                            // VelocityParameters velPars = controller.GetVelocityParams();
+                             VelocityParameters velParsY = controllerY.GetVelocityParams();
+                             //velPars.MaxVelocity = 20m;
+                             velParsY.MaxVelocity = 100m;
+                             //velPars.Acceleration = 5m;
+                             velParsY.Acceleration = 40m;
+                             controllerY.SetHomingVelocity(5);
+                             // controllerY.SetHomingVelocity(100);
+                             controller.SetVelocityParams(velParsY); //SetHomeVelocity //isDeviceBusy //isDeviceAvailable
+                             //controllerY.SetVelocityParams(velParsY);
 
-            Move_Method_Home(controllerY, positionY);
-            Console.WriteLine("Home Method Called");
+                             //controller.SetVelocityParams(velPars);
+                             // controllerY.SetVelocityParams(velParsY);
+                         }*//*
 
-            Thread thread5 = new Thread(() => Move_HomeY(controllerY, positionY));
-            thread5.Start();
+                        Move_Method_Home(controllerY, positionY);
+                        Console.WriteLine("Home Method Called");
 
+                        Thread thread5 = new Thread(() => Move_HomeY(controllerY, positionY));
+                        thread5.Start();
+            */
             //while (newPosY != 0 && newPosX != 0)
 
         }
@@ -4543,7 +5855,11 @@ namespace CL3_IF_DllSample
 
         private void button11_Click(object sender, EventArgs e)
         {
-
+            if (!controllerZ.IsDeviceBusy)
+            {
+                controllerZ.MoveTo(50, 0);
+            }
+            // zzzzz();
         }
 
         private void label9_Click(object sender, EventArgs e)
@@ -4557,6 +5873,644 @@ namespace CL3_IF_DllSample
         }
 
         private void textBox7_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void textBox9_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+        private void purgeThread()
+        {
+            if (serialPort.IsOpen())
+            {
+                string message = textBox11.Text + "\r\n";
+                serialPort.SendLine(message);
+                Console.WriteLine(message);
+            }
+        }
+
+        private void button12_Click(object sender, EventArgs e)
+        {
+            port.Write("A");
+            //Thread threadPurge = new Thread(() => purgeThread());
+            //threadPurge.Start();
+        }
+
+        private void button21_Click(object sender, EventArgs e)
+        {
+            port.Write("B");
+        }
+        private void button13_Click(object sender, EventArgs e)
+        {
+            serialPort.Open("COM3", "9600", "8", "None", "One");
+
+        }
+
+        private void button14_Click(object sender, EventArgs e)
+        {
+            string message = "set volume " + textBox9.Text + "\r\n";
+            serialPort.SendLine(message);
+            Console.WriteLine(message);
+        }
+
+        private void button16_Click(object sender, EventArgs e)
+        {
+            string message = "set rate " + textBox10.Text + "\r\n";
+            serialPort.SendLine(message);
+            Console.WriteLine(message);
+        }
+
+        private void button15_Click(object sender, EventArgs e)
+        {
+            string syringe = comboBox1.Text;
+        }
+
+        private void textBox8_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void MoveZ_radius(Thorlabs.MotionControl.IntegratedStepperMotorsCLI.LongTravelStage controllerZ, decimal heightData)
+        {
+            VelocityParameters velParsZ = controllerZ.GetVelocityParams();
+            velParsZ.MaxVelocity = 60m;
+            velParsZ.Acceleration = 120m;
+            controllerZ.SetVelocityParams(velParsZ);
+
+            if ((heightData <= -1.5m) && (heightData != -99.9999m))
+            {
+                try
+                {
+                    controllerZ.MoveTo(120m + heightData, 0);
+                }
+                catch (Exception)
+                {
+                    Console.WriteLine("Failed to move to position");
+                    // Console.ReadKey();
+                    return;
+                }
+            }
+
+            else if ((heightData >= 1.5m) && (heightData != -99.9999m))
+            {
+                try
+                {
+                    controllerZ.MoveTo(120 - heightData, 0);
+                }
+                catch (Exception)
+                {
+                    Console.WriteLine("Failed to move to position");
+                    // Console.ReadKey();
+                    return;
+                }
+            }
+        }
+
+        private void button17_Click(object sender, EventArgs e)
+        {
+            //90-105
+            timer1.Stop();
+            timer2.Start();
+            decimal scanHeight = 140m;
+            decimal abc = 0m;
+            decimal newPosZ = 0.0m;
+            decimal currentZHeight = controllerZ.Position;
+
+            List<decimal> nums = new List<decimal>() { 40m, 60m, 40m, 60m, 40m, 60m };
+
+            List<decimal> heightList = new List<decimal>();
+
+
+            //timer1.Stop();
+
+            if (!controllerZ.IsDeviceBusy)
+            {
+                controller.MoveTo(nums[0], 0);
+                controllerZ.MoveTo(scanHeight, 0);
+            }
+
+            while (true)
+            {
+                newPosZ = controllerZ.Position;
+
+                if (newPosZ == scanHeight)
+                {
+                    System.Console.WriteLine("Xdoneeeeeeeeeeeeeeeeeeeeeee: ");
+
+                    break;
+                }
+            }
+
+
+
+            foreach (var i in nums)
+            {
+                if (!controller.IsDeviceBusy)
+                {
+                    controller.MoveTo(i, 0);
+                }
+
+                while (true)
+                {
+                    heightList.Add(heightData);
+
+                    newPosZ = controller.Position;
+
+                    if (newPosZ == i)
+                    {
+                        System.Console.WriteLine("Xdoneeeeeeeeeeeeeeeeeeeeeee: " + i);
+
+                        break;
+                    }
+                }
+            }
+
+
+            /*            List<decimal> peakHeights = FindPeakHeights(heightList);
+
+                        Console.WriteLine("Peak Heights:");
+                        foreach (decimal peak in peakHeights)
+                        {
+                            Console.WriteLine(peak);
+                        }*/
+
+
+            decimal peakHeight = FindMostRepeatedPeakHeight(heightList);
+
+            if (peakHeight != decimal.MinValue)
+            {
+                Console.WriteLine($"The peak height repeated the most number of times is: {peakHeight}");
+            }
+            else
+            {
+                Console.WriteLine("There is no peak in the list.");
+            }
+
+
+            timer2.Stop();
+            timer1.Start();
+
+        }
+
+        static decimal FindMostRepeatedPeakHeight(List<decimal> numbers)
+        {
+            if (numbers.Count < 3)
+            {
+                // At least 3 elements are required to have a peak
+                return decimal.MinValue;
+            }
+
+            Dictionary<decimal, int> heightCount = new Dictionary<decimal, int>();
+
+            for (int i = 1; i < numbers.Count - 1; i++)
+            {
+                decimal current = numbers[i];
+                decimal prev = numbers[i - 1];
+                decimal next = numbers[i + 1];
+
+                if (current > prev && current > next)
+                {
+                    if (heightCount.ContainsKey(current))
+                    {
+                        heightCount[current]++;
+                    }
+                    else
+                    {
+                        heightCount[current] = 1;
+                    }
+                }
+            }
+
+            decimal mostRepeatedPeakHeight = decimal.MinValue;
+            int maxCount = 0;
+
+            foreach (KeyValuePair<decimal, int> pair in heightCount)
+            {
+                if (pair.Value > maxCount)
+                {
+                    maxCount = pair.Value;
+                    mostRepeatedPeakHeight = pair.Key;
+                }
+            }
+
+            return mostRepeatedPeakHeight;
+        }
+
+
+        static List<decimal> FindPeakHeights(List<decimal> numbers)
+        {
+            List<decimal> peakHeights = new List<decimal>();
+
+            if (numbers.Count < 3)
+            {
+                // A peak requires at least three elements
+                return peakHeights;
+            }
+
+            for (int i = 1; i < numbers.Count - 1; i++)
+            {
+                decimal current = numbers[i];
+                decimal prev = numbers[i - 1];
+                decimal next = numbers[i + 1];
+
+                if (current > prev && current > next)
+                {
+                    peakHeights.Add(current);
+                }
+            }
+
+            return peakHeights;
+        }
+
+
+        private void MainForm_Load(object sender, EventArgs e)
+        {
+
+        }
+
+        private void MainForm_Closed(object sender, EventArgs e)
+        {
+            port.Write("B");
+        }
+
+        private void button19_Click(object sender, EventArgs e)
+        {
+            if (!controllerZ.IsDeviceBusy)
+            {
+                controllerZ.MoveRelative(0, -1 * Convert.ToDecimal(textBox17.Text), 0);
+            }
+        }
+
+
+        private void button20_Click(object sender, EventArgs e)
+        {
+            if (!controllerZ.IsDeviceBusy)
+            {
+                controllerZ.MoveRelative(0, 1 * Convert.ToDecimal(textBox17.Text), 0);
+            }
+        }
+
+        private void button18_Click(object sender, EventArgs e)
+        {
+            double diameter = double.Parse(textBox2.Text); // input value mm  //textBox2.text;
+            double circumference = 2 * Math.PI * (diameter / 2);
+            double distancePerDegree = ((circumference) / 360);
+            Decimal position = 0m;
+            Decimal positionY = 0m;
+            Decimal distanceToMove = 0m;
+
+            string[] lines = System.IO.File.ReadAllLines(@"C:\Users\Ankit Shah\Desktop\designFile2.txt");
+
+            string[] parts = lines[0].Split(',');
+
+            if (parts.Length == 2)
+            {
+                if (decimal.TryParse(parts[0], out decimal xCoordinate) && decimal.TryParse(parts[1], out decimal yCoordinate))
+                {
+
+                     position = decimal.Round(xCoordinate, 3);
+                     distanceToMove = yCoordinate; // input value is always less than circumfernce
+                     positionY = decimal.Round((System.Math.Ceiling((distanceToMove / (decimal)distancePerDegree) * 1000) / 1000), 3);
+
+                    if (!controller.IsDeviceBusy && !controllerY.IsDeviceBusy)
+                    {
+                        //string xy = lines[0];
+
+                        controller.MoveTo(position, 0);
+                        controllerY.MoveTo(positionY, 0);
+                    }
+                }
+            }
+        
+        }
+
+        private void button22_Click(object sender, EventArgs e)
+        {
+            decimal currentX = controller.Position;
+            decimal currentY = controllerY.Position;
+
+            VelocityParameters velPars = controller.GetVelocityParams();
+            velPars.MaxVelocity = decimal.Parse(textBox4.Text);
+
+            velPars.Acceleration = decimal.Parse(textBox11.Text);
+
+            controller.SetVelocityParams(velPars);
+
+            Console.WriteLine(System.DateTime.Now + "\t" + velPars.MaxVelocity + "\t" + velPars.ToString() + "\t" + velPars.Acceleration);
+            if (!controller.IsDeviceBusy) 
+            { controller.MoveTo(decimal.Parse(textBox12.Text), 0); }
+
+            decimal x = System.DateTime.Now.Millisecond;
+            decimal y = System.DateTime.Now.Millisecond;
+
+            Console.WriteLine(" "+x.ToString() + " " +  y.ToString() +"   " + (y- x).ToString());
+
+
+            /*     Console.WriteLine(System.DateTime.Now + "t" + controller.Position + "\t" + controller.IsDeviceBusy);
+                 Thread.Sleep(10);
+                 Console.WriteLine(System.DateTime.Now + "t" + controller.Position + "\t" + controller.IsDeviceBusy);
+                 Thread.Sleep(1000);
+                 Console.WriteLine(System.DateTime.Now + "t" + controller.Position + "\t" + controller.IsDeviceBusy);
+
+                 //controller.Stop(200);
+                 controller.StopImmediate();
+                 Console.WriteLine(System.DateTime.Now + "t" + controller.Position + "\t" + controller.IsDeviceBusy);
+
+                 Thread.Sleep(10);
+                 Console.WriteLine(System.DateTime.Now + "t" + controller.Position + "\t" + controller.IsDeviceBusy);
+                 Thread.Sleep(10);
+                 Console.WriteLine(System.DateTime.Now + "t" + controller.Position + "\t" + controller.IsDeviceBusy);
+
+                 Console.WriteLine(System.DateTime.Now);
+                 controller.MoveTo(20m, 0);
+
+                 Console.WriteLine(System.DateTime.Now + "t" + controller.Position + "\t" + controller.IsDeviceBusy);
+                 Thread.Sleep(10);
+                 Console.WriteLine(System.DateTime.Now + "t" + controller.Position + "\t" + controller.IsDeviceBusy);
+                 Thread.Sleep(1000);
+                 Console.WriteLine(System.DateTime.Now + "t" + controller.Position + "\t" + controller.IsDeviceBusy);
+
+                 //controller.Stop(200);
+                 controller.StopImmediate();
+
+                 Console.WriteLine(System.DateTime.Now + "t" + controller.Position + "\t" + controller.IsDeviceBusy);
+
+                 Thread.Sleep(10);
+                 Console.WriteLine(System.DateTime.Now + "t" + controller.Position + "\t" + controller.IsDeviceBusy);
+                 Thread.Sleep(10);
+                 Console.WriteLine(System.DateTime.Now + "t" + controller.Position + "\t" + controller.IsDeviceBusy);
+     */
+
+            /* VelocityParameters velPars = controllerY.GetVelocityParams();
+             velPars.MaxVelocity = Convert.ToDecimal(3);
+
+             velPars.Acceleration = 5m;
+
+             controllerY.SetVelocityParams(velPars);
+
+             Console.WriteLine(System.DateTime.Now + "\t" + velPars.MaxVelocity + "\t" + velPars.ToString() + "\t" + velPars.Acceleration);
+             controllerY.MoveTo(20m, 0);
+
+             Console.WriteLine(System.DateTime.Now + "t" + controllerY.Position + "\t" + controllerY.IsDeviceBusy);
+             Thread.Sleep(10);
+             Console.WriteLine(System.DateTime.Now + "t" + controllerY.Position + "\t" + controllerY.IsDeviceBusy);
+             Thread.Sleep(1000);
+             Console.WriteLine(System.DateTime.Now + "t" + controllerY.Position + "\t" + controllerY.IsDeviceBusy);
+
+             //controller.Stop(200);
+             controllerY.StopImmediate();
+             Console.WriteLine(System.DateTime.Now + "t" + controllerY.Position + "\t" + controllerY.IsDeviceBusy);
+
+             Thread.Sleep(10);
+             Console.WriteLine(System.DateTime.Now + "t" + controllerY.Position + "\t" + controllerY.IsDeviceBusy);
+             Thread.Sleep(10);
+             Console.WriteLine(System.DateTime.Now + "t" + controllerY.Position + "\t" + controllerY.IsDeviceBusy);
+
+             Console.WriteLine(System.DateTime.Now);
+             controllerY.MoveTo(20m, 0);
+
+             Console.WriteLine(System.DateTime.Now + "t" + controllerY.Position + "\t" + controllerY.IsDeviceBusy);
+             Thread.Sleep(10);
+             Console.WriteLine(System.DateTime.Now + "t" + controllerY.Position + "\t" + controllerY.IsDeviceBusy);
+             Thread.Sleep(1000);
+             Console.WriteLine(System.DateTime.Now + "t" + controllerY.Position + "\t" + controllerY.IsDeviceBusy);
+
+             //controller.Stop(200);
+             controllerY.StopImmediate();
+
+             Console.WriteLine(System.DateTime.Now + "t" + controllerY.Position + "\t" + controllerY.IsDeviceBusy);
+
+             Thread.Sleep(10);
+             Console.WriteLine(System.DateTime.Now + "t" + controllerY.Position + "\t" + controllerY.IsDeviceBusy);
+             Thread.Sleep(10);
+             Console.WriteLine(System.DateTime.Now + "t" + controllerY.Position + "\t" + controllerY.IsDeviceBusy);*/
+        }
+
+        private void chart1_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void label17_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button24_Click(object sender, EventArgs e)
+        {
+            printRunning = false;
+            controller.StopImmediate();
+            controllerY.StopImmediate();
+            controllerZ.StopImmediate();
+            timer1.Stop();
+            timer4.Start();
+            port.Write("B");
+        }
+
+        private static bool _taskComplete;
+        private static ulong _taskID;
+
+
+        public static void CommandCompleteFunction(ulong taskID)
+        {
+            if ((_taskID > 0) && (_taskID == taskID))
+            {
+                _taskComplete = true;
+            }
+        }
+        public static void Move_Method2(IGenericAdvancedMotor controller, decimal position)
+        {
+
+            /*
+                        Console.WriteLine("Moving Device to {0}", position);
+                        _taskComplete = false;
+                        _taskID = controller.MoveTo(position, CommandCompleteFunction);
+                        while (!_taskComplete)
+                        {
+                            Thread.Sleep(500);
+                            StatusBase status = controller.Status;
+                            Console.WriteLine("Device Moving {0}", status.Position);
+
+                            // Will need some timeout functionality;
+                        }
+                        Console.WriteLine("Device Moved");*/
+        }
+
+
+        private void _pnlDeviceId_Paint(object sender, PaintEventArgs e)
+        {
+
+        }
+
+        private void textBox13_TextChanged(object sender, EventArgs e)
+        {
+
+        }
+
+        private void timer3_Tick_1(object sender, EventArgs e)
+        {
+            //Console.WriteLine("heyyy tulsi");
+            textBox6.Text = controller.Position.ToString();
+            textBox7.Text = controllerY.Position.ToString();
+            textBox8.Text = controllerZ.Position.ToString();
+            label15.Text = (heightData).ToString();
+            //Console.WriteLine("heyyy tulsi");
+
+            
+        }
+
+        private void timer4_Tick(object sender, EventArgs e)
+        {
+
+            VelocityParameters velParsZ = controllerZ.GetVelocityParams();
+            velParsZ.MinVelocity = 60m;
+            velParsZ.MaxVelocity = 60m;
+            velParsZ.Acceleration = 120m; //0
+            controllerZ.SetVelocityParams(velParsZ);
+
+            textBox1.Text = controllerZ.Position.ToString();
+
+            setpoint = heightData;
+
+
+            // string filePath = "C:/Users/Ankit Shah/Desktop/PIDDoutput.txt";
+            /*
+                        decimal kp = 1m;
+                        decimal ki = 0.00001m;
+                        decimal kd = 0.00001m;
+                        decimal setpoint = 0.0m;
+                        decimal integralTerm = 0.0m;
+                        decimal prevError = 0.0m;
+                        decimal error = 0.0m;
+                        decimal proportionalTerm = 0.0m;
+                        decimal derivativeTerm = 0.0m;
+                        decimal controlSignal = 0.0m;*/
+
+            //Console.WriteLine("hereeeeba");
+            byte[] buffer = new byte[MaxRequestDataLength];
+            using (PinnedObject pin = new PinnedObject(buffer))
+            {
+
+                //Console.WriteLine("yooooo");
+                CL3IF_MEASUREMENT_DATA measurementData = new CL3IF_MEASUREMENT_DATA();
+                measurementData.outMeasurementData = new CL3IF_OUTMEASUREMENT_DATA[NativeMethods.CL3IF_MAX_OUT_COUNT];
+
+                int returnCode = NativeMethods.CL3IF_GetMeasurementData(CurrentDeviceId, pin.Pointer);
+
+                //Console.WriteLine(measurementData.outMeasurementData[1].measurementValue.ToString());
+
+
+                if (returnCode != NativeMethods.CL3IF_RC_OK)
+                {
+                    // OutputLogMessage("GetMeasurementData", returnCode);
+                    return;
+                }
+
+                // measurementData.addInfo = (CL3IF_ADD_INFO)Marshal.PtrToStructure(pin.Pointer, typeof(CL3IF_ADD_INFO));
+                int readPosition = Marshal.SizeOf(typeof(CL3IF_ADD_INFO));
+                //for (int i = 0; i < NativeMethods.CL3IF_MAX_OUT_COUNT; i++)
+                {
+                    measurementData.outMeasurementData[0] = (CL3IF_OUTMEASUREMENT_DATA)Marshal.PtrToStructure(pin.Pointer + readPosition, typeof(CL3IF_OUTMEASUREMENT_DATA));
+                    // readPosition += Marshal.SizeOf(typeof(CL3IF_OUTMEASUREMENT_DATA));
+                }
+
+                //  this.Invoke((MethodInvoker)(() => OutputLogMessage(measurementData.outMeasurementData[0].measurementValue.ToString())));
+
+                // OutputLogMessage("GetMeasurementData", returnCode, loggingProperties);
+                //Console.WriteLine(measurementData.outMeasurementData[0].measurementValue.ToString());
+                heightData = Convert.ToDecimal(measurementData.outMeasurementData[0].measurementValue.ToString()) / 10000;
+                //Console.WriteLine(heightData);
+                this.Invoke((MethodInvoker)(() => OutputLogMessage(heightData.ToString())));
+            }
+        
+
+                }
+
+        private void label5_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void button25_Click(object sender, EventArgs e)
+        {
+            double diameter = double.Parse(textBox2.Text); // input value mm  //textBox2.text;
+            double circumference = 2 * Math.PI * (diameter / 2);
+            distancePerDegree = ((circumference) / 360);
+
+            double perMmDegree = 1 / distancePerDegree;
+
+            //Console.Writeline(perMmDegree);
+            Console.WriteLine(perMmDegree);
+
+            double v2_max = 25; // Maximum linear velocity in mm/s
+            double v1_max = 10; // Maximum rotational velocity in degrees/s
+
+
+
+            // Calculate the valid range for v1
+            double v1_min = 0.2;
+            double v1 = 0;
+            double v2 = 0;
+
+            double time = 1;
+
+
+            comboBox2.Items.Clear();
+            arrayListVelocity.Clear();
+
+            while (v1 <= v1_max)
+            {
+                // v2 = (angularDistanceInDegrees * v1 ) / linearDistanceInMM;
+
+                v1 = 1 / time;
+                v2 = perMmDegree / time;
+
+                if (v2 <= v2_max)
+                {
+                    //Console.WriteLine("Time: " + time + "\t" + "      VelX: " + Math.Round(v1, 2) + "\t" + "            VelY: " + Math.Round(v2, 2));
+                    string comboVal = "Time: " + time + "\t" + "      VelX: " + Math.Round(v1, 2) + "\t" + "            VelY: " + Math.Round(v2, 2);
+                    comboBox2.Items.Add(comboVal);
+                    arrayListVelocity.Add(Math.Round(v1, 2) + "," + Math.Round(v2, 2));
+                }
+
+                time += 0.1; // Increment v1 by 1 degree/s
+
+                if (v1 < v1_min)
+                {
+                    break;
+                }
+            }
+        }
+
+        private void comboBox2_SelectedIndexChanged_1(object sender, EventArgs e)
+        {
+            VelXY = arrayListVelocity[comboBox2.SelectedIndex].ToString();
+
+        }
+
+        private void timer5_Tick(object sender, EventArgs e)
+        {
+           // Console.WriteLine(decimal.Round(decimal.Parse(textBox6.Text), 3)+"  "+ posnX);
+            if (decimal.Round(decimal.Parse(textBox6.Text), 3) == posnX && decimal.Round(decimal.Parse(textBox7.Text), 3) == posnY)
+            {
+               // Console.WriteLine("yoooo");
+                port.Write("B");
+                //timer5.Stop();
+                //watch.Stop();
+
+                //Console.WriteLine($"Execution Time: {watch.ElapsedMilliseconds} ms");
+            }
+
+            if (coordinateList.Count == 0 && decimal.Round(decimal.Parse(textBox6.Text), 3) == posnX && decimal.Round(decimal.Parse(textBox7.Text), 3) == posnY)
+            {
+                printRunning = false;
+                timer5.Stop();
+            }
+        }
+
+        private void label27_Click(object sender, EventArgs e)
         {
 
         }
