@@ -1,6 +1,4 @@
-﻿// 
-// Serial COM Port receive message event handler
-// 12/16/2017, Dale Gambill
+
 // When a line of text arrives from the COM port terminated by a \n character, this module will pass the message to
 // the function specified by the application.   The application can also send a line of text.
 //
