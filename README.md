@@ -243,7 +243,4 @@ G1 Z10.0 F1200
 - Advanced G-code preview with 3D visualization  
 - Cloud log storage for process tracking  
 
----
 
-## License
-Specify your preferred license (MIT, BSD, or proprietary).
